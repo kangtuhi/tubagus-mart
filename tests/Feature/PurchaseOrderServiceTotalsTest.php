@@ -5,7 +5,6 @@ use App\Models\Product;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderItem;
 use App\Models\Supplier;
-use App\Models\User;
 use App\Services\Purchasing\PurchaseOrderService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
