@@ -5,7 +5,6 @@ use App\Models\Supplier;
 use App\Models\SupplierInvoice;
 use App\Models\SupplierPayment;
 use App\Models\User;
-use App\Services\Payables\SupplierInvoiceService;
 use App\Services\Payables\SupplierPaymentService;
 use DomainException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -14,19 +13,16 @@ uses(RefreshDatabase::class);
 
 function postedSupplierInvoiceForPayment(): SupplierInvoice
 {
-    $invoice = SupplierInvoice::create([
+    return SupplierInvoice::factory()->posted()->create([
         'supplier_id' => Supplier::factory()->create()->id,
-        'number' => 'INV-PAY-'.fake()->unique()->numerify('######'),
         'invoice_date' => '2026-08-29',
+        'due_date' => '2026-09-28',
         'subtotal' => 10000,
         'discount_amount' => 500,
         'tax_amount' => 950,
         'grand_total' => 10450,
         'paid_amount' => 0,
-        'status' => SupplierInvoiceStatus::DRAFT,
     ]);
-
-    return app(SupplierInvoiceService::class)->post($invoice);
 }
 
 test('recording payments creates ledger entries and marks invoice paid', function () {
