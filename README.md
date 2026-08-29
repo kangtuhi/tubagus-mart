@@ -50,6 +50,19 @@ Tubagus Mart saat ini **single-business / non-branch**. Karena itu, model domain
 
 `App\Services\Business\BusinessSettings` menjadi service layer awal untuk membaca profile, membaca setting bertipe, mengambil settings per group, dan menyimpan setting secara konsisten.
 
+## Product Foundation
+
+### Product Catalog
+
+Phase 1.3 memperkenalkan master catalog yang menjadi fondasi untuk inventory, purchasing, pricing, dan POS:
+
+- `product_categories` — kategori produk hierarkis dengan dukungan parent/child.
+- `brands` — identitas brand dan status aktif.
+- `units` — satuan dasar produk dan presisi kuantitas.
+- `products` — master produk dengan SKU, barcode, kategori, brand, satuan, harga modal, harga jual, pajak, dan kontrol stok.
+
+Desain ini sengaja belum memasukkan stok aktual, supplier, harga promosi, multi-barcode, atau product variant. Entitas tersebut akan dibangun pada domain berikutnya agar batas tanggung jawab tetap jelas.
+
 ## Current Phase
 
 ### Phase 1 — Foundation
@@ -59,8 +72,9 @@ Tubagus Mart saat ini **single-business / non-branch**. Karena itu, model domain
 - [x] Role & Permission foundation
 - [x] Authorization middleware & tests
 - [x] **1.2 Business Foundation — Profile & Settings**
-- [ ] Product foundation
+- [x] **1.3 Product Foundation — Catalog Master**
 - [ ] Inventory foundation
+- [ ] Purchasing & supplier foundation
 - [ ] Sales/POS foundation
 - [ ] Supporting business domains
 
