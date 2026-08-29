@@ -52,7 +52,7 @@ class SupplierPayablesAgingService
                 : 0;
 
             $bucket = match (true) {
-                $daysOverdue === 0 => 'current',
+                $daysOverdue <= 0 => 'current',
                 $daysOverdue <= 30 => '1_30',
                 $daysOverdue <= 60 => '31_60',
                 $daysOverdue <= 90 => '61_90',
