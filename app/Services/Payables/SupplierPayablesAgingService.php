@@ -20,7 +20,7 @@ class SupplierPayablesAgingService
         $asOf = $asOf?->copy()->startOfDay() ?? now()->startOfDay();
 
         $invoices = SupplierInvoice::query()
-            ->with(['supplier', 'adjustments'])
+            ->with(['supplier', 'adjustments' => fn ($query) => $query->whereDate('adjustment_date', '<=', $asOf->toDateString())])
             ->whereIn('status', [
                 SupplierInvoiceStatus::POSTED,
                 SupplierInvoiceStatus::PARTIALLY_PAID,
