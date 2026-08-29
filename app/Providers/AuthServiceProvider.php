@@ -10,7 +10,7 @@ class AuthServiceProvider extends ServiceProvider
 {
     public function boot(): void
     {
-        Gate::before(function (User $user, string $ability): ?bool {
+        Gate::before(function (User $user): ?bool {
             if (! $user->is_active) {
                 return false;
             }
