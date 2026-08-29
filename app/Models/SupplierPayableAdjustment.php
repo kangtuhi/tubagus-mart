@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 #[Fillable([
     'supplier_invoice_id',
@@ -51,14 +52,14 @@ class SupplierPayableAdjustment extends Model
         return $this->belongsTo(self::class, 'reversal_of_id');
     }
 
+    public function reversal(): HasOne
+    {
+        return $this->hasOne(self::class, 'reversal_of_id');
+    }
+
     public function reversedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'reversed_by');
-    }
-
-    public function reversal(): ?self
-    {
-        return $this->hasOne(self::class, 'reversal_of_id')->first();
     }
 
     public function isReversed(): bool
