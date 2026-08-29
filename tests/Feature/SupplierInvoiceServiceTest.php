@@ -4,6 +4,7 @@ use App\Enums\SupplierInvoiceStatus;
 use App\Models\Supplier;
 use App\Models\SupplierInvoice;
 use App\Services\Payables\SupplierInvoiceService;
+use App\Services\Payables\SupplierPaymentService;
 use DomainException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
@@ -41,44 +42,50 @@ test('supplier invoice with inconsistent grand total cannot be posted', function
 
 test('supplier invoice payment changes status and outstanding balance', function () {
     $invoice = supplierInvoiceForService();
-    $service = app(SupplierInvoiceService::class);
-    $service->post($invoice);
+    $invoiceService = app(SupplierInvoiceService::class);
+    $paymentService = app(SupplierPaymentService::class);
+    $invoiceService->post($invoice);
 
-    $result = $service->recordPayment($invoice, 4000);
+    $paymentService->record($invoice, 'PAY-0001', 4000);
+    $result = $invoice->refresh();
 
     expect($result->status)->toBe(SupplierInvoiceStatus::PARTIALLY_PAID)
         ->and($result->paid_amount)->toBe('4000.00')
-        ->and($service->outstandingBalance($result))->toBe(6450.0);
+        ->and($paymentService->outstandingBalance($result))->toBe(6450.0);
 });
 
 test('final supplier invoice payment marks invoice paid', function () {
     $invoice = supplierInvoiceForService();
-    $service = app(SupplierInvoiceService::class);
-    $service->post($invoice);
-    $service->recordPayment($invoice, 4000);
+    $invoiceService = app(SupplierInvoiceService::class);
+    $paymentService = app(SupplierPaymentService::class);
+    $invoiceService->post($invoice);
+    $paymentService->record($invoice, 'PAY-0001', 4000);
 
-    $result = $service->recordPayment($invoice, 6450);
+    $paymentService->record($invoice, 'PAY-0002', 6450);
+    $result = $invoice->refresh();
 
     expect($result->status)->toBe(SupplierInvoiceStatus::PAID)
         ->and($result->paid_amount)->toBe('10450.00')
-        ->and($service->outstandingBalance($result))->toBe(0.0);
+        ->and($paymentService->outstandingBalance($result))->toBe(0.0);
 });
 
 test('payment cannot exceed outstanding balance', function () {
     $invoice = supplierInvoiceForService();
-    $service = app(SupplierInvoiceService::class);
-    $service->post($invoice);
+    $invoiceService = app(SupplierInvoiceService::class);
+    $paymentService = app(SupplierPaymentService::class);
+    $invoiceService->post($invoice);
 
-    expect(fn () => $service->recordPayment($invoice, 10450.01))
+    expect(fn () => $paymentService->record($invoice, 'PAY-OVER', 10450.01))
         ->toThrow(DomainException::class, 'Payment amount cannot exceed the outstanding supplier invoice balance.');
 });
 
 test('paid supplier invoice cannot be voided', function () {
     $invoice = supplierInvoiceForService();
-    $service = app(SupplierInvoiceService::class);
-    $service->post($invoice);
-    $service->recordPayment($invoice, 10450);
+    $invoiceService = app(SupplierInvoiceService::class);
+    $paymentService = app(SupplierPaymentService::class);
+    $invoiceService->post($invoice);
+    $paymentService->record($invoice, 'PAY-0001', 10450);
 
-    expect(fn () => $service->void($invoice))
+    expect(fn () => $invoiceService->void($invoice))
         ->toThrow(DomainException::class, 'Paid supplier invoices cannot be voided.');
 });
