@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use App\Enums\PurchaseOrderStatus;
-use Illuminate\Database\Eloquent\Attributes\Casts;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -24,18 +23,22 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'approved_at',
     'notes',
 ])]
-#[Casts([
-    'status' => PurchaseOrderStatus::class,
-    'ordered_at' => 'date',
-    'expected_at' => 'date',
-    'approved_at' => 'datetime',
-    'subtotal' => 'decimal:2',
-    'discount_amount' => 'decimal:2',
-    'tax_amount' => 'decimal:2',
-    'grand_total' => 'decimal:2',
-])]
 class PurchaseOrder extends Model
 {
+    protected function casts(): array
+    {
+        return [
+            'status' => PurchaseOrderStatus::class,
+            'ordered_at' => 'date',
+            'expected_at' => 'date',
+            'approved_at' => 'datetime',
+            'subtotal' => 'decimal:2',
+            'discount_amount' => 'decimal:2',
+            'tax_amount' => 'decimal:2',
+            'grand_total' => 'decimal:2',
+        ];
+    }
+
     public function supplier(): BelongsTo
     {
         return $this->belongsTo(Supplier::class);
