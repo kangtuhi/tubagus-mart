@@ -36,7 +36,7 @@ test('recording payments creates ledger entries and marks invoice paid', functio
     expect($first)->toBeInstanceOf(SupplierPayment::class)
         ->and($second)->toBeInstanceOf(SupplierPayment::class)
         ->and($invoice->refresh()->status)->toBe(SupplierInvoiceStatus::PAID)
-        ->and($invoice->paid_amount)->toBe('10450.00')
+        ->and((float) $invoice->paid_amount)->toBe(10450.0)
         ->and($service->outstandingBalance($invoice))->toBe(0.0)
         ->and($invoice->payments()->count())->toBe(2)
         ->and($invoice->payments()->sum('amount'))->toBe(10450.0);
@@ -51,18 +51,17 @@ test('payment cannot exceed outstanding balance', function () {
 });
 
 test('draft and void invoices cannot receive payments', function () {
-    $invoice = SupplierInvoice::create([
-        'supplier_id' => Supplier::factory()->create()->id,
-        'number' => 'INV-DRAFT-'.fake()->unique()->numerify('######'),
-        'invoice_date' => '2026-08-29',
-        'subtotal' => 1000,
-        'discount_amount' => 0,
-        'tax_amount' => 0,
+    $draftInvoice = SupplierInvoice::factory()->create([
+        'status' => SupplierInvoiceStatus::DRAFT,
         'grand_total' => 1000,
         'paid_amount' => 0,
-        'status' => SupplierInvoiceStatus::DRAFT,
     ]);
 
-    expect(fn () => app(SupplierPaymentService::class)->record($invoice, 'PAY-DRAFT', 100))
+    expect(fn () => app(SupplierPaymentService::class)->record($draftInvoice, 'PAY-DRAFT', 100))
+        ->toThrow(DomainException::class, 'Only posted or partially paid supplier invoices can receive payments.');
+
+    $voidInvoice = SupplierInvoice::factory()->void()->create();
+
+    expect(fn () => app(SupplierPaymentService::class)->record($voidInvoice, 'PAY-VOID', 100))
         ->toThrow(DomainException::class, 'Only posted or partially paid supplier invoices can receive payments.');
 });
