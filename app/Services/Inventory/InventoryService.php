@@ -6,8 +6,8 @@ use App\Enums\InventoryMovementType;
 use App\Models\InventoryMovement;
 use App\Models\InventoryStock;
 use App\Models\Product;
-use Illuminate\Support\Facades\DB;
 use DomainException;
+use Illuminate\Support\Facades\DB;
 
 class InventoryService
 {
