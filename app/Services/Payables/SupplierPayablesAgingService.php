@@ -24,6 +24,7 @@ class SupplierPayablesAgingService
                 SupplierInvoiceStatus::POSTED,
                 SupplierInvoiceStatus::PARTIALLY_PAID,
             ])
+            ->whereDate('invoice_date', '<=', $asOf->toDateString())
             ->whereColumn('paid_amount', '<', 'grand_total')
             ->orderByRaw('due_date IS NULL')
             ->orderBy('due_date')
