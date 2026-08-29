@@ -4,6 +4,7 @@ namespace App\Services\Payables;
 
 use App\Enums\SupplierInvoiceStatus;
 use App\Models\SupplierInvoice;
+use App\Reports\Payables\SupplierPayablesAgingReport;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
@@ -12,11 +13,8 @@ class SupplierPayablesAgingService
 {
     /**
      * Build the current outstanding payables aging report as of the supplied date.
-     *
-     * The outstanding balance comes from the invoice's current paid_amount ledger.
-     * The as-of date determines how the balance is classified by due-date age.
      */
-    public function report(?CarbonInterface $asOf = null): array
+    public function report(?CarbonInterface $asOf = null): SupplierPayablesAgingReport
     {
         $asOf = $asOf?->copy()->startOfDay() ?? now()->startOfDay();
 
@@ -93,13 +91,13 @@ class SupplierPayablesAgingService
             $supplierTotals,
         ));
 
-        return [
-            'as_of' => $asOf,
-            'total_outstanding' => round(array_sum($buckets), 2),
-            'buckets' => $buckets,
-            'suppliers' => Collection::make($supplierTotals)->sortByDesc('outstanding')->values(),
-            'invoices' => $rows,
-        ];
+        return new SupplierPayablesAgingReport(
+            asOf: $asOf,
+            totalOutstanding: round(array_sum($buckets), 2),
+            buckets: $buckets,
+            suppliers: Collection::make($supplierTotals)->sortByDesc('outstanding')->values(),
+            invoices: $rows,
+        );
     }
 
     public function outstandingInvoices(): Collection
