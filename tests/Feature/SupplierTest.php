@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Supplier;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
@@ -25,5 +26,5 @@ test('supplier code is unique', function () {
     $supplier = Supplier::factory()->create();
 
     expect(fn () => Supplier::factory()->create(['code' => $supplier->code]))
-        ->toThrow(\Illuminate\Database\QueryException::class);
+        ->toThrow(QueryException::class);
 });
