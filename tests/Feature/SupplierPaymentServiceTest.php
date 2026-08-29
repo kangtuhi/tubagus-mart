@@ -39,7 +39,7 @@ test('recording payments creates ledger entries and marks invoice paid', functio
         ->and((float) $invoice->paid_amount)->toBe(10450.0)
         ->and($service->outstandingBalance($invoice))->toBe(0.0)
         ->and($invoice->payments()->count())->toBe(2)
-        ->and($invoice->payments()->sum('amount'))->toBe(10450.0);
+        ->and((float) $invoice->payments()->sum('amount'))->toBe(10450.0);
 });
 
 test('payment cannot exceed outstanding balance', function () {
