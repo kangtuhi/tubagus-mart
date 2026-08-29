@@ -22,7 +22,7 @@ class SupplierInvoiceLifecycleService
 
             $from = $lockedInvoice->status;
 
-            if (!$this->canTransition($from, $to)) {
+            if (! $this->canTransition($from, $to)) {
                 throw ValidationException::withMessages([
                     'status' => sprintf(
                         'Invalid supplier invoice status transition from [%s] to [%s].',
