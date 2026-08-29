@@ -47,5 +47,5 @@ test('a product can have stock at multiple locations', function () {
     ]);
 
     expect($product->inventoryStocks()->count())->toBe(2)
-        ->and($product->inventoryStocks()->sum('quantity'))->toBe(17.0);
+        ->and((float) $product->inventoryStocks()->sum('quantity'))->toBe(17.0);
 });
