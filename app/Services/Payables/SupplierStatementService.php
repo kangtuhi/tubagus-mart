@@ -23,11 +23,11 @@ class SupplierStatementService
         ?CarbonInterface $to = null,
     ): array {
         $transactions = $this->transactions($supplierId);
-        $openingBalance = $transactions
-            ->when($from !== null, fn (Collection $items): Collection => $items->filter(
-                fn (array $item): bool => $item['occurred_at']->lt($from),
-            ))
-            ->sum(fn (array $item): float => $item['signed_amount']);
+        $openingBalance = $from === null
+            ? 0.0
+            : $transactions
+                ->filter(fn (array $item): bool => $item['occurred_at']->lt($from))
+                ->sum(fn (array $item): float => $item['signed_amount']);
 
         $periodTransactions = $transactions
             ->when($from !== null, fn (Collection $items): Collection => $items->filter(
