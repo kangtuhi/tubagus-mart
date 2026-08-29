@@ -12,8 +12,7 @@ final readonly class SupplierPayablesAgingReport
         public array $buckets,
         public Collection $suppliers,
         public Collection $invoices,
-    ) {
-    }
+    ) {}
 
     public function totalOutstanding(): float
     {
