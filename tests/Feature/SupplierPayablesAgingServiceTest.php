@@ -137,7 +137,10 @@ test('supplier invoice factory provides useful payables lifecycle states', funct
     $supplier = Supplier::factory()->create();
 
     $posted = SupplierInvoice::factory()->for($supplier)->posted()->create();
-    $partial = SupplierInvoice::factory()->for($supplier)->partiallyPaid(250)->create();
+    $partial = SupplierInvoice::factory()->for($supplier)->partiallyPaid(250)->create([
+        'subtotal' => 1000,
+        'grand_total' => 1000,
+    ]);
     $paid = SupplierInvoice::factory()->for($supplier)->paid()->create();
     $void = SupplierInvoice::factory()->for($supplier)->void()->create();
     $overdue = SupplierInvoice::factory()->for($supplier)->posted()->overdue(45)->create();
