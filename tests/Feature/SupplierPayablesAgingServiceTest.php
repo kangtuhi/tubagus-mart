@@ -3,6 +3,7 @@
 use App\Enums\SupplierInvoiceStatus;
 use App\Models\Supplier;
 use App\Models\SupplierInvoice;
+use App\Reports\Payables\SupplierPayablesAgingReport;
 use App\Services\Payables\SupplierInvoiceService;
 use App\Services\Payables\SupplierPayablesAgingService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -42,16 +43,16 @@ test('payables aging classifies outstanding invoices into due date buckets', fun
 
     $report = app(SupplierPayablesAgingService::class)->report($asOf);
 
-    expect($report['total_outstanding'])->toBe(15000.0)
-        ->and($report['buckets'])->toBe([
-            'current' => 1000.0,
-            '1_30' => 2000.0,
-            '31_60' => 3000.0,
-            '61_90' => 4000.0,
-            '91_plus' => 5000.0,
-        ])
-        ->and($report['invoices'])->toHaveCount(5)
-        ->and($report['suppliers']->first())->toMatchArray([
+    expect($report)->toBeInstanceOf(SupplierPayablesAgingReport::class)
+        ->and($report->totalOutstanding())->toBe(15000.0)
+        ->and($report->current())->toBe(1000.0)
+        ->and($report->bucket('1_30'))->toBe(2000.0)
+        ->and($report->bucket('31_60'))->toBe(3000.0)
+        ->and($report->bucket('61_90'))->toBe(4000.0)
+        ->and($report->bucket('91_plus'))->toBe(5000.0)
+        ->and($report->overdue())->toBe(14000.0)
+        ->and($report->invoices)->toHaveCount(5)
+        ->and($report->suppliers->first())->toMatchArray([
             'supplier_id' => $supplier->id,
             'supplier_code' => 'SUP-AGING',
             'supplier_name' => 'Aging Supplier',
@@ -127,10 +128,10 @@ test('payables aging keeps invoices without due dates in current bucket', functi
 
     $report = app(SupplierPayablesAgingService::class)->report(now()->startOfDay());
 
-    expect($report['total_outstanding'])->toBe(1000.0)
-        ->and($report['buckets']['current'])->toBe(1000.0)
-        ->and($report['invoices']->first()['invoice']->is($invoice))->toBeTrue()
-        ->and($report['invoices']->first()['outstanding'])->toBe(1000.0);
+    expect($report->totalOutstanding())->toBe(1000.0)
+        ->and($report->current())->toBe(1000.0)
+        ->and($report->invoices->first()['invoice']->is($invoice))->toBeTrue()
+        ->and($report->invoices->first()['outstanding'])->toBe(1000.0);
 });
 
 test('supplier invoice factory provides useful payables lifecycle states', function () {
