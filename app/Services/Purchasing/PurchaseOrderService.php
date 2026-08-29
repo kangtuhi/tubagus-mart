@@ -4,7 +4,6 @@ namespace App\Services\Purchasing;
 
 use App\Enums\PurchaseOrderStatus;
 use App\Models\PurchaseOrder;
-use App\Models\Supplier;
 use DomainException;
 use Illuminate\Database\DatabaseManager;
 use Illuminate\Support\Facades\Auth;
@@ -13,23 +12,39 @@ class PurchaseOrderService
 {
     public function __construct(
         private readonly DatabaseManager $database,
+        private readonly PurchaseOrderTotals $totals,
     ) {}
 
     public function submit(PurchaseOrder $purchaseOrder): PurchaseOrder
     {
-        return $this->transition($purchaseOrder, PurchaseOrderStatus::SUBMITTED);
+        return $this->database->transaction(function () use ($purchaseOrder) {
+            $purchaseOrder->refresh()->load('items');
+
+            if ($purchaseOrder->status !== PurchaseOrderStatus::DRAFT) {
+                throw new DomainException('Only draft purchase orders can be submitted.');
+            }
+
+            if ($purchaseOrder->items->isEmpty()) {
+                throw new DomainException('A purchase order must contain at least one item.');
+            }
+
+            $this->recalculate($purchaseOrder);
+            $purchaseOrder->update(['status' => PurchaseOrderStatus::SUBMITTED]);
+
+            return $purchaseOrder->refresh();
+        });
     }
 
     public function approve(PurchaseOrder $purchaseOrder): PurchaseOrder
     {
         return $this->database->transaction(function () use ($purchaseOrder) {
-            $purchaseOrder->refresh();
+            $purchaseOrder->refresh()->load('items', 'supplier');
 
             if ($purchaseOrder->status !== PurchaseOrderStatus::SUBMITTED) {
                 throw new DomainException('Only submitted purchase orders can be approved.');
             }
 
-            if ($purchaseOrder->items()->doesntExist()) {
+            if ($purchaseOrder->items->isEmpty()) {
                 throw new DomainException('A purchase order must contain at least one item.');
             }
 
@@ -37,6 +52,7 @@ class PurchaseOrderService
                 throw new DomainException('Inactive suppliers cannot have purchase orders approved.');
             }
 
+            $this->recalculate($purchaseOrder);
             $purchaseOrder->update([
                 'status' => PurchaseOrderStatus::APPROVED,
                 'approved_by' => Auth::id(),
@@ -66,22 +82,13 @@ class PurchaseOrderService
         });
     }
 
-    private function transition(PurchaseOrder $purchaseOrder, PurchaseOrderStatus $status): PurchaseOrder
+    private function recalculate(PurchaseOrder $purchaseOrder): void
     {
-        return $this->database->transaction(function () use ($purchaseOrder, $status) {
-            $purchaseOrder->refresh();
+        foreach ($purchaseOrder->items as $item) {
+            $item->update($this->totals->calculateItem($item));
+        }
 
-            if ($purchaseOrder->status !== PurchaseOrderStatus::DRAFT) {
-                throw new DomainException('Only draft purchase orders can be submitted.');
-            }
-
-            if ($purchaseOrder->items()->doesntExist()) {
-                throw new DomainException('A purchase order must contain at least one item.');
-            }
-
-            $purchaseOrder->update(['status' => $status]);
-
-            return $purchaseOrder->refresh();
-        });
+        $purchaseOrder->load('items');
+        $purchaseOrder->update($this->totals->calculateOrder($purchaseOrder));
     }
 }
