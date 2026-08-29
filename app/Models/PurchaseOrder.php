@@ -25,6 +25,14 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 ])]
 class PurchaseOrder extends Model
 {
+    protected $attributes = [
+        'status' => PurchaseOrderStatus::DRAFT->value,
+        'subtotal' => 0,
+        'discount_amount' => 0,
+        'tax_amount' => 0,
+        'grand_total' => 0,
+    ];
+
     protected function casts(): array
     {
         return [
