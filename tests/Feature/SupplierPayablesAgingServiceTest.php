@@ -124,3 +124,31 @@ test('supplier invoice factory provides useful payables lifecycle states', funct
         ->and($overdue->due_date->isPast())->toBeTrue()
         ->and($upcoming->due_date->isFuture())->toBeTrue();
 });
+
+test('payables aging excludes invoices dated after the as-of date', function () {
+    $supplier = Supplier::factory()->create();
+    $asOf = now()->startOfDay();
+
+    $historical = SupplierInvoice::factory()->for($supplier)->posted()->create([
+        'number' => 'INV-HISTORICAL',
+        'invoice_date' => $asOf->copy()->subDay()->toDateString(),
+        'due_date' => $asOf->copy()->addDays(10)->toDateString(),
+        'subtotal' => 1000,
+        'grand_total' => 1000,
+    ]);
+    $future = SupplierInvoice::factory()->for($supplier)->posted()->create([
+        'number' => 'INV-FUTURE',
+        'invoice_date' => $asOf->copy()->addDay()->toDateString(),
+        'due_date' => $asOf->copy()->addDays(20)->toDateString(),
+        'subtotal' => 2500,
+        'grand_total' => 2500,
+    ]);
+
+    $report = app(SupplierPayablesAgingService::class)->report($asOf);
+
+    expect($report->totalOutstanding())->toBe(1000.0)
+        ->and($report->current())->toBe(1000.0)
+        ->and($report->invoices)->toHaveCount(1)
+        ->and($report->invoices->first()['invoice']->is($historical))->toBeTrue()
+        ->and($report->invoices->contains(fn (array $row): bool => $row['invoice']->is($future)))->toBeFalse();
+});
