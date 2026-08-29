@@ -55,4 +55,9 @@ class SupplierInvoice extends Model
     {
         return $this->hasMany(SupplierPayment::class);
     }
+
+    public function adjustments(): HasMany
+    {
+        return $this->hasMany(SupplierPayableAdjustment::class);
+    }
 }
