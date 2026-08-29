@@ -4,7 +4,6 @@ use App\Enums\SupplierInvoiceStatus;
 use App\Models\Supplier;
 use App\Models\SupplierInvoice;
 use App\Reports\Payables\SupplierPayablesAgingReport;
-use App\Services\Payables\SupplierInvoiceService;
 use App\Services\Payables\SupplierPayablesAgingService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
@@ -15,31 +14,43 @@ test('payables aging classifies outstanding invoices into due date buckets', fun
         'code' => 'SUP-AGING',
         'name' => 'Aging Supplier',
     ]);
-    $invoiceService = app(SupplierInvoiceService::class);
     $asOf = now()->startOfDay();
 
-    $createInvoice = function (string $number, int $daysOverdue, float $total) use ($supplier, $invoiceService): SupplierInvoice {
-        $invoice = SupplierInvoice::create([
-            'supplier_id' => $supplier->id,
-            'number' => $number,
-            'invoice_date' => now()->subDays(max(1, $daysOverdue))->toDateString(),
-            'due_date' => now()->subDays($daysOverdue)->toDateString(),
-            'subtotal' => $total,
-            'discount_amount' => 0,
-            'tax_amount' => 0,
-            'grand_total' => $total,
-            'paid_amount' => 0,
-            'status' => SupplierInvoiceStatus::DRAFT,
-        ]);
-
-        return $invoiceService->post($invoice);
-    };
-
-    $createInvoice('INV-CURRENT', 0, 1000);
-    $createInvoice('INV-1-30', 10, 2000);
-    $createInvoice('INV-31-60', 40, 3000);
-    $createInvoice('INV-61-90', 70, 4000);
-    $createInvoice('INV-91-PLUS', 100, 5000);
+    SupplierInvoice::factory()->for($supplier)->posted()->create([
+        'number' => 'INV-CURRENT',
+        'invoice_date' => $asOf->toDateString(),
+        'due_date' => $asOf->toDateString(),
+        'subtotal' => 1000,
+        'grand_total' => 1000,
+    ]);
+    SupplierInvoice::factory()->for($supplier)->posted()->create([
+        'number' => 'INV-1-30',
+        'invoice_date' => $asOf->copy()->subDays(10)->toDateString(),
+        'due_date' => $asOf->copy()->subDays(10)->toDateString(),
+        'subtotal' => 2000,
+        'grand_total' => 2000,
+    ]);
+    SupplierInvoice::factory()->for($supplier)->posted()->create([
+        'number' => 'INV-31-60',
+        'invoice_date' => $asOf->copy()->subDays(40)->toDateString(),
+        'due_date' => $asOf->copy()->subDays(40)->toDateString(),
+        'subtotal' => 3000,
+        'grand_total' => 3000,
+    ]);
+    SupplierInvoice::factory()->for($supplier)->posted()->create([
+        'number' => 'INV-61-90',
+        'invoice_date' => $asOf->copy()->subDays(70)->toDateString(),
+        'due_date' => $asOf->copy()->subDays(70)->toDateString(),
+        'subtotal' => 4000,
+        'grand_total' => 4000,
+    ]);
+    SupplierInvoice::factory()->for($supplier)->posted()->create([
+        'number' => 'INV-91-PLUS',
+        'invoice_date' => $asOf->copy()->subDays(100)->toDateString(),
+        'due_date' => $asOf->copy()->subDays(100)->toDateString(),
+        'subtotal' => 5000,
+        'grand_total' => 5000,
+    ]);
 
     $report = app(SupplierPayablesAgingService::class)->report($asOf);
 
@@ -62,68 +73,24 @@ test('payables aging classifies outstanding invoices into due date buckets', fun
 
 test('payables aging excludes paid, draft, and void invoices', function () {
     $supplier = Supplier::factory()->create();
-    $invoiceService = app(SupplierInvoiceService::class);
 
-    $paidInvoice = SupplierInvoice::create([
-        'supplier_id' => $supplier->id,
-        'number' => 'INV-PAID-AGING',
-        'invoice_date' => '2026-08-01',
-        'due_date' => '2026-08-10',
-        'subtotal' => 1000,
-        'discount_amount' => 0,
-        'tax_amount' => 0,
-        'grand_total' => 1000,
-        'paid_amount' => 1000,
-        'status' => SupplierInvoiceStatus::PAID,
-    ]);
-
-    $draftInvoice = SupplierInvoice::create([
-        'supplier_id' => $supplier->id,
-        'number' => 'INV-DRAFT-AGING',
-        'invoice_date' => '2026-08-01',
-        'due_date' => '2026-08-10',
-        'subtotal' => 2000,
-        'discount_amount' => 0,
-        'tax_amount' => 0,
-        'grand_total' => 2000,
-        'paid_amount' => 0,
-        'status' => SupplierInvoiceStatus::DRAFT,
-    ]);
-
-    $voidInvoice = SupplierInvoice::create([
-        'supplier_id' => $supplier->id,
-        'number' => 'INV-VOID-AGING',
-        'invoice_date' => '2026-08-01',
-        'due_date' => '2026-08-10',
-        'subtotal' => 3000,
-        'discount_amount' => 0,
-        'tax_amount' => 0,
-        'grand_total' => 3000,
-        'paid_amount' => 0,
-        'status' => SupplierInvoiceStatus::DRAFT,
-    ]);
-
-    $invoiceService->void($voidInvoice);
+    $paidInvoice = SupplierInvoice::factory()->for($supplier)->paid()->create();
+    $draftInvoice = SupplierInvoice::factory()->for($supplier)->create();
+    $voidInvoice = SupplierInvoice::factory()->for($supplier)->void()->create();
 
     expect($paidInvoice->exists)->toBeTrue()
         ->and($draftInvoice->status)->toBe(SupplierInvoiceStatus::DRAFT)
-        ->and($voidInvoice->refresh()->status)->toBe(SupplierInvoiceStatus::VOID)
+        ->and($voidInvoice->status)->toBe(SupplierInvoiceStatus::VOID)
         ->and(app(SupplierPayablesAgingService::class)->outstandingInvoices())->toHaveCount(0);
 });
 
 test('payables aging keeps invoices without due dates in current bucket', function () {
     $supplier = Supplier::factory()->create();
-    $invoice = SupplierInvoice::create([
-        'supplier_id' => $supplier->id,
-        'number' => 'INV-NODUE-AGING',
+    $invoice = SupplierInvoice::factory()->for($supplier)->partiallyPaid(250)->create([
         'invoice_date' => '2026-08-01',
         'due_date' => null,
         'subtotal' => 1250,
-        'discount_amount' => 0,
-        'tax_amount' => 0,
         'grand_total' => 1250,
-        'paid_amount' => 250,
-        'status' => SupplierInvoiceStatus::PARTIALLY_PAID,
     ]);
 
     $report = app(SupplierPayablesAgingService::class)->report(now()->startOfDay());
@@ -148,7 +115,7 @@ test('supplier invoice factory provides useful payables lifecycle states', funct
     $upcoming = SupplierInvoice::factory()->for($supplier)->posted()->dueIn(15)->create();
 
     expect($posted->status)->toBe(SupplierInvoiceStatus::POSTED)
-        ->and($posted->paid_amount)->toBe('0.00')
+        ->and((float) $posted->paid_amount)->toBe(0.0)
         ->and($partial->status)->toBe(SupplierInvoiceStatus::PARTIALLY_PAID)
         ->and((float) $partial->paid_amount)->toBe(250.0)
         ->and($paid->status)->toBe(SupplierInvoiceStatus::PAID)
