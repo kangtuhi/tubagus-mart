@@ -3,6 +3,7 @@
 namespace App\Services\Payables;
 
 use App\Enums\SupplierInvoiceStatus;
+use App\Enums\SupplierPayableAdjustmentType;
 use App\Models\SupplierInvoice;
 use App\Models\SupplierPayment;
 use Carbon\CarbonInterface;
@@ -61,9 +62,7 @@ class SupplierPayablePaymentService
                 ]);
             }
 
-            $grandTotal = round((float) $lockedInvoice->grand_total, 2);
-            $paidAmount = round((float) $lockedInvoice->paid_amount, 2);
-            $outstanding = round($grandTotal - $paidAmount, 2);
+            $outstanding = $this->outstanding($lockedInvoice);
 
             if ($outstanding <= 0) {
                 throw ValidationException::withMessages([
@@ -77,10 +76,8 @@ class SupplierPayablePaymentService
                 ]);
             }
 
-            $newPaidAmount = round($paidAmount + $amount, 2);
-            $newStatus = $newPaidAmount >= $grandTotal
-                ? SupplierInvoiceStatus::PAID
-                : SupplierInvoiceStatus::PARTIALLY_PAID;
+            $newPaidAmount = round((float) $lockedInvoice->paid_amount + $amount, 2);
+            $newOutstanding = round($outstanding - $amount, 2);
 
             $payment = SupplierPayment::query()->create([
                 'supplier_invoice_id' => $lockedInvoice->getKey(),
@@ -94,10 +91,36 @@ class SupplierPayablePaymentService
 
             $lockedInvoice->update([
                 'paid_amount' => $newPaidAmount,
-                'status' => $newStatus,
             ]);
+
+            if ($newOutstanding === 0.0) {
+                app(SupplierInvoiceLifecycleService::class)->transition(
+                    $lockedInvoice,
+                    SupplierInvoiceStatus::PAID,
+                );
+            } elseif ($lockedInvoice->status === SupplierInvoiceStatus::POSTED) {
+                app(SupplierInvoiceLifecycleService::class)->transition(
+                    $lockedInvoice,
+                    SupplierInvoiceStatus::PARTIALLY_PAID,
+                );
+            }
 
             return $payment;
         });
+    }
+
+    public function outstanding(SupplierInvoice $invoice): float
+    {
+        $credit = $invoice->adjustments()
+            ->where('type', SupplierPayableAdjustmentType::CREDIT)
+            ->sum('amount');
+        $debit = $invoice->adjustments()
+            ->where('type', SupplierPayableAdjustmentType::DEBIT)
+            ->sum('amount');
+
+        return round(max(
+            0,
+            (float) $invoice->grand_total + (float) $debit - (float) $credit - (float) $invoice->paid_amount,
+        ), 2);
     }
 }
