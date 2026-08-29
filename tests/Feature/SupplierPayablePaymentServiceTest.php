@@ -34,6 +34,7 @@ test('payment service records a partial payment and updates invoice balance', fu
 test('payment service marks invoice paid after exact final payment', function () {
     $invoice = SupplierInvoice::factory()->for(Supplier::factory())->partiallyPaid(750)->create([
         'grand_total' => 1000,
+        'paid_amount' => 750,
     ]);
 
     app(SupplierPayablePaymentService::class)->record(
