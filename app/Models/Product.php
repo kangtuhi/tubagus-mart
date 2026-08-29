@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\ProductType;
 use Illuminate\Database\Eloquent\Attributes\Casts;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
@@ -25,6 +26,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'is_active',
 ])]
 #[Casts([
+    'product_type' => ProductType::class,
     'cost_price' => 'decimal:2',
     'selling_price' => 'decimal:2',
     'tax_rate' => 'decimal:2',
