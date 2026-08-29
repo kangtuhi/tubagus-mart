@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use App\Enums\ProductType;
-use Illuminate\Database\Eloquent\Attributes\Casts;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -27,18 +26,22 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'track_stock',
     'is_active',
 ])]
-#[Casts([
-    'product_type' => ProductType::class,
-    'cost_price' => 'decimal:2',
-    'selling_price' => 'decimal:2',
-    'tax_rate' => 'decimal:2',
-    'is_taxable' => 'boolean',
-    'track_stock' => 'boolean',
-    'is_active' => 'boolean',
-])]
 class Product extends Model
 {
     use HasFactory;
+
+    protected function casts(): array
+    {
+        return [
+            'product_type' => ProductType::class,
+            'cost_price' => 'decimal:2',
+            'selling_price' => 'decimal:2',
+            'tax_rate' => 'decimal:2',
+            'is_taxable' => 'boolean',
+            'track_stock' => 'boolean',
+            'is_active' => 'boolean',
+        ];
+    }
 
     public function category(): BelongsTo
     {
