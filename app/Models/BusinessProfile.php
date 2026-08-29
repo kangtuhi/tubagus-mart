@@ -24,6 +24,4 @@ use Illuminate\Database\Eloquent\Model;
     'tax_number',
     'logo_path',
 ])]
-class BusinessProfile extends Model
-{
-}
+class BusinessProfile extends Model {}
