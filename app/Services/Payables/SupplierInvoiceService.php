@@ -1,9 +1,12 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Services\Payables;
 
 use App\Enums\SupplierInvoiceStatus;
 use App\Models\SupplierInvoice;
+use App\Services\Accounting\AccountingPeriodService;
 use DomainException;
 use Illuminate\Database\DatabaseManager;
 
@@ -11,6 +14,7 @@ class SupplierInvoiceService
 {
     public function __construct(
         private readonly DatabaseManager $database,
+        private readonly AccountingPeriodService $accountingPeriods,
     ) {}
 
     public function post(SupplierInvoice $invoice): SupplierInvoice
@@ -27,6 +31,8 @@ class SupplierInvoiceService
             if ((float) $invoice->paid_amount !== 0.0) {
                 throw new DomainException('A draft supplier invoice cannot have a paid amount.');
             }
+
+            $this->accountingPeriods->assertOpenIfDefined($invoice->invoice_date);
 
             $invoice->update(['status' => SupplierInvoiceStatus::POSTED]);
 
