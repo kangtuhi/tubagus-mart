@@ -194,24 +194,16 @@ class SupplierPayableAdjustmentService
     private function synchronizeInvoiceStatus(SupplierInvoice $invoice): void
     {
         $balance = $this->balance($invoice);
+        $grandTotal = (float) $invoice->grand_total;
 
-        if ($balance === 0.0) {
-            if ($invoice->status !== SupplierInvoiceStatus::PAID) {
-                app(SupplierInvoiceLifecycleService::class)->transition(
-                    $invoice,
-                    SupplierInvoiceStatus::PAID,
-                );
-            }
-
-            return;
-        }
-
-        $target = (float) $invoice->paid_amount > 0
-            ? SupplierInvoiceStatus::PARTIALLY_PAID
-            : SupplierInvoiceStatus::POSTED;
+        $target = match (true) {
+            $balance === 0.0 => SupplierInvoiceStatus::PAID,
+            $balance < $grandTotal => SupplierInvoiceStatus::PARTIALLY_PAID,
+            default => SupplierInvoiceStatus::POSTED,
+        };
 
         if ($invoice->status !== $target) {
-            app(SupplierInvoiceLifecycleService::class)->transition($invoice, $target);
+            $invoice->update(['status' => $target]);
         }
     }
 }
