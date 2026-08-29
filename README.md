@@ -1,58 +1,120 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Tubagus Mart
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Tubagus Mart adalah aplikasi **supermarket management & POS** yang dibangun sebagai fondasi bisnis tunggal (*single business*), bukan multi-cabang. Aplikasi ini dirancang untuk berkembang menjadi sistem operasional supermarket yang kompleks, terstruktur, aman, dan mudah dirawat.
 
-## About Laravel
+## Project Foundation
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+- **Framework:** Laravel 13
+- **PHP:** 8.5.9
+- **Database:** MySQL
+- **Architecture direction:** domain-oriented Laravel application
+- **Business model:** satu entitas bisnis, tanpa konsep cabang
+- **Authorization:** role & permission based access control (RBAC)
+- **Testing:** Pest
+- **Code style:** Laravel Pint
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## Domain Direction
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+Tubagus Mart tidak diposisikan sebagai project Laravel generik. Laravel menjadi application framework, sedangkan domain bisnis menjadi pusat desain.
 
-## Learning Laravel
+Fondasi domain dirancang untuk mencakup:
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+- Business Profile & Settings
+- Identity, Authentication & Authorization
+- Product & Catalog Management
+- Inventory & Stock Control
+- Purchasing & Suppliers
+- Point of Sale & Sales Transactions
+- Customers & Loyalty
+- Promotions & Pricing
+- Payments & Cash Management
+- Reporting & Operational Analytics
+- Audit Trail & System Administration
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+## Business Foundation
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
+### Business Profile
 
-## Agentic Development
+`business_profiles` menyimpan identitas dan konfigurasi inti Tubagus Mart, termasuk nama bisnis, informasi kontak, alamat, timezone, mata uang, informasi pajak, dan logo.
 
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+Tubagus Mart saat ini **single-business / non-branch**. Karena itu, model domain tidak memperkenalkan `branches` atau `branch_id` sebagai bagian dari fondasi.
+
+### Settings
+
+`settings` menyediakan konfigurasi aplikasi berbasis key-value yang dapat dikelompokkan berdasarkan domain, misalnya:
+
+- `business.*`
+- `sales.*`
+- `inventory.*`
+- `system.*`
+
+`App\Services\Business\BusinessSettings` menjadi service layer awal untuk membaca profile, membaca setting bertipe, mengambil settings per group, dan menyimpan setting secara konsisten.
+
+## Current Phase
+
+### Phase 1 — Foundation
+
+- [x] Laravel application foundation
+- [x] Authentication foundation
+- [x] Role & Permission foundation
+- [x] Authorization middleware & tests
+- [x] **1.2 Business Foundation — Profile & Settings**
+- [ ] Product foundation
+- [ ] Inventory foundation
+- [ ] Sales/POS foundation
+- [ ] Supporting business domains
+
+## Development Principles
+
+1. **Business-first architecture** — desain mengikuti kebutuhan supermarket, bukan sekadar mengikuti struktur CRUD.
+2. **Laravel conventions first** — gunakan konvensi Laravel 13 sebelum memperkenalkan abstraksi custom.
+3. **Explicit domain boundaries** — domain penting memiliki model, service, policy, action, atau value object sesuai kebutuhan.
+4. **Database integrity** — aturan penting ditegakkan sedekat mungkin dengan database dan domain.
+5. **Test before expansion** — fondasi yang menjadi dependency domain lain harus memiliki test yang memadai.
+6. **No premature multi-branch design** — Tubagus Mart adalah satu bisnis tanpa cabang; kompleksitas harus datang dari operasi bisnis, bukan dari fitur yang tidak diperlukan.
+7. **Backward-safe evolution** — perubahan schema dan domain harus mempertimbangkan data yang sudah ada.
+
+## Getting Started
+
+Install dependency:
 
 ```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+composer install
+npm install
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+Siapkan environment dan database MySQL, lalu jalankan:
 
-## Contributing
+```bash
+php artisan key:generate
+php artisan migrate
+php artisan db:seed
+```
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+Untuk development:
 
-## Code of Conduct
+```bash
+composer run dev
+```
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+Untuk menjalankan test:
 
-## Security Vulnerabilities
+```bash
+php artisan test
+```
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+Untuk memastikan coding style:
+
+```bash
+vendor/bin/pint
+```
+
+## Repository
+
+Source code resmi project ini berada di:
+
+https://github.com/kangtuhi/tubagus-mart
 
 ## License
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+Project ini menggunakan lisensi MIT.
