@@ -104,6 +104,23 @@ class AccountingPeriodService
         return $period;
     }
 
+    public function assertOpenIfDefined(CarbonInterface $date): ?AccountingPeriod
+    {
+        $period = $this->forDate($date);
+
+        if ($period === null) {
+            return null;
+        }
+
+        if ($period->isClosed()) {
+            throw ValidationException::withMessages([
+                'date' => 'The accounting period for the supplied date is closed.',
+            ]);
+        }
+
+        return $period;
+    }
+
     private function overlaps(CarbonInterface $startDate, CarbonInterface $endDate): bool
     {
         return AccountingPeriod::query()
