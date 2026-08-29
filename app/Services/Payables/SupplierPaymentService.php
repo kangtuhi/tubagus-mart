@@ -1,10 +1,14 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Services\Payables;
 
 use App\Enums\SupplierInvoiceStatus;
 use App\Models\SupplierInvoice;
 use App\Models\SupplierPayment;
+use App\Services\Accounting\AccountingPeriodService;
+use Carbon\CarbonInterface;
 use DomainException;
 use Illuminate\Database\DatabaseManager;
 
@@ -12,6 +16,7 @@ class SupplierPaymentService
 {
     public function __construct(
         private readonly DatabaseManager $database,
+        private readonly AccountingPeriodService $accountingPeriods,
     ) {}
 
     public function record(
@@ -21,8 +26,9 @@ class SupplierPaymentService
         ?int $paidBy = null,
         ?string $reference = null,
         ?string $notes = null,
+        ?CarbonInterface $paidAt = null,
     ): SupplierPayment {
-        return $this->database->transaction(function () use ($invoice, $paymentNumber, $amount, $paidBy, $reference, $notes) {
+        return $this->database->transaction(function () use ($invoice, $paymentNumber, $amount, $paidBy, $reference, $notes, $paidAt) {
             $invoice = SupplierInvoice::query()->lockForUpdate()->findOrFail($invoice->id);
 
             if (! in_array($invoice->status, [
@@ -42,9 +48,13 @@ class SupplierPaymentService
                 throw new DomainException('Payment amount cannot exceed the outstanding supplier invoice balance.');
             }
 
+            $paymentDate = $paidAt ?? now();
+
+            $this->accountingPeriods->assertOpenIfDefined($paymentDate);
+
             $payment = $invoice->payments()->create([
                 'payment_number' => $paymentNumber,
-                'paid_at' => now(),
+                'paid_at' => $paymentDate,
                 'amount' => $amount,
                 'reference' => $reference,
                 'notes' => $notes,
