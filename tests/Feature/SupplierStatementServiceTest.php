@@ -1,5 +1,8 @@
 <?php
 
+declare(strict_types=1);
+
+use App\Enums\SupplierInvoiceStatus;
 use App\Enums\SupplierPayableAdjustmentType;
 use App\Models\Supplier;
 use App\Models\SupplierInvoice;
@@ -128,7 +131,7 @@ test('supplier statement ignores draft and void invoices', function () {
     $supplier = Supplier::factory()->create();
 
     SupplierInvoice::factory()->for($supplier)->create([
-        'status' => \App\Enums\SupplierInvoiceStatus::DRAFT,
+        'status' => SupplierInvoiceStatus::DRAFT,
         'number' => 'INV-STAT-005',
         'invoice_date' => Carbon::parse('2026-08-01'),
         'grand_total' => 500,
