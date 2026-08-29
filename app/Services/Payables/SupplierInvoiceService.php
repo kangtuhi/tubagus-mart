@@ -34,42 +34,6 @@ class SupplierInvoiceService
         });
     }
 
-    public function recordPayment(SupplierInvoice $invoice, float $amount): SupplierInvoice
-    {
-        return $this->database->transaction(function () use ($invoice, $amount) {
-            $invoice->refresh();
-
-            if (! in_array($invoice->status, [
-                SupplierInvoiceStatus::POSTED,
-                SupplierInvoiceStatus::PARTIALLY_PAID,
-            ], true)) {
-                throw new DomainException('Only posted or partially paid supplier invoices can receive payments.');
-            }
-
-            if ($amount <= 0) {
-                throw new DomainException('Payment amount must be greater than zero.');
-            }
-
-            $remaining = round((float) $invoice->grand_total - (float) $invoice->paid_amount, 2);
-
-            if ($amount > $remaining) {
-                throw new DomainException('Payment amount cannot exceed the outstanding supplier invoice balance.');
-            }
-
-            $paidAmount = round((float) $invoice->paid_amount + $amount, 2);
-            $status = $paidAmount >= (float) $invoice->grand_total
-                ? SupplierInvoiceStatus::PAID
-                : SupplierInvoiceStatus::PARTIALLY_PAID;
-
-            $invoice->update([
-                'paid_amount' => $paidAmount,
-                'status' => $status,
-            ]);
-
-            return $invoice->refresh();
-        });
-    }
-
     public function void(SupplierInvoice $invoice): SupplierInvoice
     {
         return $this->database->transaction(function () use ($invoice) {
