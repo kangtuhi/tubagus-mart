@@ -1,14 +1,21 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Services\Payables;
 
 use App\Enums\SupplierInvoiceStatus;
 use App\Models\SupplierInvoice;
+use App\Services\Accounting\AccountingPeriodService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class SupplierInvoiceLifecycleService
 {
+    public function __construct(
+        private readonly AccountingPeriodService $accountingPeriods,
+    ) {}
+
     /**
      * Transition a supplier invoice through an explicitly allowed state change.
      */
@@ -36,6 +43,10 @@ class SupplierInvoiceLifecycleService
                 throw ValidationException::withMessages([
                     'status' => 'An invoice with recorded payments cannot be voided.',
                 ]);
+            }
+
+            if ($to === SupplierInvoiceStatus::POSTED) {
+                $this->accountingPeriods->assertOpenIfDefined($lockedInvoice->invoice_date);
             }
 
             $lockedInvoice->update(['status' => $to]);
