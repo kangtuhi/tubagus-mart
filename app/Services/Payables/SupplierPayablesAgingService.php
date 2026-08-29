@@ -3,6 +3,7 @@
 namespace App\Services\Payables;
 
 use App\Enums\SupplierInvoiceStatus;
+use App\Enums\SupplierPayableAdjustmentType;
 use App\Models\SupplierInvoice;
 use App\Reports\Payables\SupplierPayablesAgingReport;
 use Carbon\Carbon;
@@ -19,7 +20,7 @@ class SupplierPayablesAgingService
         $asOf = $asOf?->copy()->startOfDay() ?? now()->startOfDay();
 
         $invoices = SupplierInvoice::query()
-            ->with('supplier')
+            ->with(['supplier', 'adjustments'])
             ->whereIn('status', [
                 SupplierInvoiceStatus::POSTED,
                 SupplierInvoiceStatus::PARTIALLY_PAID,
@@ -41,7 +42,16 @@ class SupplierPayablesAgingService
 
         $supplierTotals = [];
         $rows = $invoices->map(function (SupplierInvoice $invoice) use ($asOf, &$buckets, &$supplierTotals): array {
-            $outstanding = round(max(0, (float) $invoice->grand_total - (float) $invoice->paid_amount), 2);
+            $credit = (float) $invoice->adjustments
+                ->where('type', SupplierPayableAdjustmentType::CREDIT)
+                ->sum('amount');
+            $debit = (float) $invoice->adjustments
+                ->where('type', SupplierPayableAdjustmentType::DEBIT)
+                ->sum('amount');
+            $outstanding = round(max(
+                0,
+                (float) $invoice->grand_total + $debit - $credit - (float) $invoice->paid_amount,
+            ), 2);
             $dueDate = $invoice->due_date instanceof CarbonInterface
                 ? $invoice->due_date
                 : ($invoice->due_date ? Carbon::parse($invoice->due_date) : null);
@@ -76,6 +86,8 @@ class SupplierPayablesAgingService
                 'invoice' => $invoice,
                 'supplier' => $invoice->supplier,
                 'due_date' => $dueDate,
+                'credit_adjustments' => round($credit, 2),
+                'debit_adjustments' => round($debit, 2),
                 'outstanding' => $outstanding,
                 'days_overdue' => $daysOverdue,
                 'bucket' => $bucket,
@@ -104,7 +116,7 @@ class SupplierPayablesAgingService
     public function outstandingInvoices(): Collection
     {
         return SupplierInvoice::query()
-            ->with('supplier')
+            ->with(['supplier', 'adjustments'])
             ->whereIn('status', [
                 SupplierInvoiceStatus::POSTED,
                 SupplierInvoiceStatus::PARTIALLY_PAID,
