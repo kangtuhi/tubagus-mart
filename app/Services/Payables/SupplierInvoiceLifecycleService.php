@@ -62,8 +62,11 @@ class SupplierInvoiceLifecycleService
                 SupplierInvoiceStatus::PAID,
                 SupplierInvoiceStatus::VOID,
             ], true),
-            SupplierInvoiceStatus::PARTIALLY_PAID => $to === SupplierInvoiceStatus::PAID,
-            SupplierInvoiceStatus::PAID,
+            SupplierInvoiceStatus::PARTIALLY_PAID => in_array($to, [
+                SupplierInvoiceStatus::POSTED,
+                SupplierInvoiceStatus::PAID,
+            ], true),
+            SupplierInvoiceStatus::PAID => $to === SupplierInvoiceStatus::PARTIALLY_PAID,
             SupplierInvoiceStatus::VOID => false,
         };
     }
