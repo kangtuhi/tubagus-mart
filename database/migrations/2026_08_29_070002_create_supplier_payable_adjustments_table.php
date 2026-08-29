@@ -20,8 +20,14 @@ return new class extends Migration
             $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();
 
-            $table->index(['supplier_invoice_id', 'adjustment_date']);
-            $table->index(['type', 'adjustment_date']);
+            $table->index(
+                ['supplier_invoice_id', 'adjustment_date'],
+                'payable_adjustment_invoice_date_index',
+            );
+            $table->index(
+                ['type', 'adjustment_date'],
+                'payable_adjustment_type_date_index',
+            );
         });
     }
 
