@@ -26,7 +26,7 @@ test('purchase order item totals are calculated correctly', function () {
 });
 
 test('purchase order totals aggregate all items', function () {
-    $order = new PurchaseOrder();
+    $order = new PurchaseOrder;
     $order->setRelation('items', collect([
         purchaseItemForTotals(['quantity' => 10, 'unit_cost' => 1250, 'discount_amount' => 500, 'tax_amount' => 100]),
         purchaseItemForTotals(['quantity' => 4, 'unit_cost' => 2000, 'discount_amount' => 200, 'tax_amount' => 300]),
