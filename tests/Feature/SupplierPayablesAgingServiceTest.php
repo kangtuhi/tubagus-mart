@@ -132,3 +132,24 @@ test('payables aging keeps invoices without due dates in current bucket', functi
         ->and($report['invoices']->first()['invoice']->is($invoice))->toBeTrue()
         ->and($report['invoices']->first()['outstanding'])->toBe(1000.0);
 });
+
+test('supplier invoice factory provides useful payables lifecycle states', function () {
+    $supplier = Supplier::factory()->create();
+
+    $posted = SupplierInvoice::factory()->for($supplier)->posted()->create();
+    $partial = SupplierInvoice::factory()->for($supplier)->partiallyPaid(250)->create();
+    $paid = SupplierInvoice::factory()->for($supplier)->paid()->create();
+    $void = SupplierInvoice::factory()->for($supplier)->void()->create();
+    $overdue = SupplierInvoice::factory()->for($supplier)->posted()->overdue(45)->create();
+    $upcoming = SupplierInvoice::factory()->for($supplier)->posted()->dueIn(15)->create();
+
+    expect($posted->status)->toBe(SupplierInvoiceStatus::POSTED)
+        ->and($posted->paid_amount)->toBe('0.00')
+        ->and($partial->status)->toBe(SupplierInvoiceStatus::PARTIALLY_PAID)
+        ->and((float) $partial->paid_amount)->toBe(250.0)
+        ->and($paid->status)->toBe(SupplierInvoiceStatus::PAID)
+        ->and((float) $paid->paid_amount)->toBe((float) $paid->grand_total)
+        ->and($void->status)->toBe(SupplierInvoiceStatus::VOID)
+        ->and($overdue->due_date->isPast())->toBeTrue()
+        ->and($upcoming->due_date->isFuture())->toBeTrue();
+});
