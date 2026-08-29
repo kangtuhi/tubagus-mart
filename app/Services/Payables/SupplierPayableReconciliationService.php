@@ -2,6 +2,7 @@
 
 namespace App\Services\Payables;
 
+use App\Enums\SupplierPayableAdjustmentType;
 use App\Enums\SupplierInvoiceStatus;
 use App\Models\SupplierInvoice;
 use Illuminate\Support\Collection;
@@ -9,10 +10,7 @@ use Illuminate\Support\Collection;
 class SupplierPayableReconciliationService
 {
     /**
-     * Reconcile posted supplier invoices against their recorded payments.
-     *
-     * The result is intentionally derived from invoice totals and paid_amount
-     * so callers have one consistent balance calculation for AP reporting.
+     * Reconcile posted supplier invoices against payments and adjustments.
      */
     public function reconcile(?int $supplierId = null): Collection
     {
@@ -35,7 +33,14 @@ class SupplierPayableReconciliationService
                 $first = $supplierInvoices->first();
                 $invoiceTotal = $supplierInvoices->sum(fn (SupplierInvoice $invoice): float => (float) $invoice->grand_total);
                 $paidTotal = $supplierInvoices->sum(fn (SupplierInvoice $invoice): float => (float) $invoice->paid_amount);
-                $outstanding = round(max(0, $invoiceTotal - $paidTotal), 2);
+                $creditTotal = $supplierInvoices->sum(fn (SupplierInvoice $invoice): float => (float) $invoice->adjustments()
+                    ->where('type', SupplierPayableAdjustmentType::CREDIT)
+                    ->sum('amount'));
+                $debitTotal = $supplierInvoices->sum(fn (SupplierInvoice $invoice): float => (float) $invoice->adjustments()
+                    ->where('type', SupplierPayableAdjustmentType::DEBIT)
+                    ->sum('amount'));
+                $adjustedTotal = round($invoiceTotal + $debitTotal - $creditTotal, 2);
+                $outstanding = round(max(0, $adjustedTotal - $paidTotal), 2);
 
                 return [
                     'supplier_id' => $first->supplier_id,
@@ -43,6 +48,9 @@ class SupplierPayableReconciliationService
                     'supplier_name' => $first->supplier->name,
                     'invoice_count' => $supplierInvoices->count(),
                     'invoice_total' => round($invoiceTotal, 2),
+                    'credit_total' => round($creditTotal, 2),
+                    'debit_total' => round($debitTotal, 2),
+                    'adjusted_total' => $adjustedTotal,
                     'paid_total' => round($paidTotal, 2),
                     'outstanding' => $outstanding,
                     'is_reconciled' => $outstanding === 0.0,
