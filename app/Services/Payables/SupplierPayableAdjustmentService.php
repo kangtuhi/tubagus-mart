@@ -82,19 +82,97 @@ class SupplierPayableAdjustmentService
                 'created_by' => $createdBy,
             ]);
 
-            if ($type === SupplierPayableAdjustmentType::CREDIT && $amount === $balance) {
-                app(SupplierInvoiceLifecycleService::class)->transition(
-                    $lockedInvoice,
-                    SupplierInvoiceStatus::PAID,
-                );
-            } elseif ($type === SupplierPayableAdjustmentType::CREDIT) {
-                app(SupplierInvoiceLifecycleService::class)->transition(
-                    $lockedInvoice,
-                    SupplierInvoiceStatus::PARTIALLY_PAID,
-                );
-            }
+            $this->synchronizeInvoiceStatus($lockedInvoice);
 
             return $adjustment->refresh();
+        });
+    }
+
+    public function reverse(
+        SupplierPayableAdjustment $adjustment,
+        string $reversalNumber,
+        string $reason,
+        ?int $reversedBy = null,
+        ?CarbonInterface $reversalDate = null,
+        ?string $notes = null,
+    ): SupplierPayableAdjustment {
+        if (trim($reversalNumber) === '') {
+            throw ValidationException::withMessages([
+                'number' => 'Reversal adjustment number is required.',
+            ]);
+        }
+
+        if (trim($reason) === '') {
+            throw ValidationException::withMessages([
+                'reason' => 'Reversal reason is required.',
+            ]);
+        }
+
+        return DB::transaction(function () use ($adjustment, $reversalNumber, $reason, $reversedBy, $reversalDate, $notes): SupplierPayableAdjustment {
+            /** @var SupplierPayableAdjustment $lockedAdjustment */
+            $lockedAdjustment = SupplierPayableAdjustment::query()
+                ->lockForUpdate()
+                ->findOrFail($adjustment->getKey());
+
+            if ($lockedAdjustment->reversed_at !== null) {
+                throw ValidationException::withMessages([
+                    'adjustment' => 'This adjustment has already been reversed.',
+                ]);
+            }
+
+            if ($lockedAdjustment->reversal_of_id !== null) {
+                throw ValidationException::withMessages([
+                    'adjustment' => 'A reversal adjustment cannot itself be reversed.',
+                ]);
+            }
+
+            $invoice = SupplierInvoice::query()
+                ->lockForUpdate()
+                ->findOrFail($lockedAdjustment->supplier_invoice_id);
+
+            if ($invoice->status === SupplierInvoiceStatus::VOID) {
+                throw ValidationException::withMessages([
+                    'invoice' => 'Adjustments cannot be reversed on a void invoice.',
+                ]);
+            }
+
+            if (SupplierPayableAdjustment::query()->where('number', $reversalNumber)->exists()) {
+                throw ValidationException::withMessages([
+                    'number' => 'Reversal adjustment number has already been used.',
+                ]);
+            }
+
+            $reversalType = $lockedAdjustment->type === SupplierPayableAdjustmentType::CREDIT
+                ? SupplierPayableAdjustmentType::DEBIT
+                : SupplierPayableAdjustmentType::CREDIT;
+
+            if ($reversalType === SupplierPayableAdjustmentType::CREDIT && $lockedAdjustment->amount > $this->balance($invoice)) {
+                throw ValidationException::withMessages([
+                    'adjustment' => 'The adjustment cannot be reversed because the compensating credit would exceed the current outstanding balance.',
+                ]);
+            }
+
+            $reversal = SupplierPayableAdjustment::query()->create([
+                'supplier_invoice_id' => $invoice->getKey(),
+                'number' => $reversalNumber,
+                'type' => $reversalType,
+                'adjustment_date' => $reversalDate ?? now(),
+                'amount' => $lockedAdjustment->amount,
+                'reason' => 'Reversal of '.$lockedAdjustment->number.': '.$reason,
+                'notes' => $notes,
+                'created_by' => $reversedBy,
+                'reversal_of_id' => $lockedAdjustment->getKey(),
+            ]);
+
+            $lockedAdjustment->update([
+                'reversed_at' => $reversalDate ?? now(),
+                'reversed_by' => $reversedBy,
+                'reversal_reason' => $reason,
+            ]);
+
+            $this->synchronizeInvoiceStatus($invoice);
+
+            return $reversal->refresh();
         });
     }
 
@@ -111,5 +189,29 @@ class SupplierPayableAdjustmentService
             0,
             (float) $invoice->grand_total + (float) $debit - (float) $credit - (float) $invoice->paid_amount,
         ), 2);
+    }
+
+    private function synchronizeInvoiceStatus(SupplierInvoice $invoice): void
+    {
+        $balance = $this->balance($invoice);
+
+        if ($balance === 0.0) {
+            if ($invoice->status !== SupplierInvoiceStatus::PAID) {
+                app(SupplierInvoiceLifecycleService::class)->transition(
+                    $invoice,
+                    SupplierInvoiceStatus::PAID,
+                );
+            }
+
+            return;
+        }
+
+        $target = (float) $invoice->paid_amount > 0
+            ? SupplierInvoiceStatus::PARTIALLY_PAID
+            : SupplierInvoiceStatus::POSTED;
+
+        if ($invoice->status !== $target) {
+            app(SupplierInvoiceLifecycleService::class)->transition($invoice, $target);
+        }
     }
 }
