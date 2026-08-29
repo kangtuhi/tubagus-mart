@@ -1,17 +1,24 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Services\Payables;
 
 use App\Enums\SupplierInvoiceStatus;
 use App\Enums\SupplierPayableAdjustmentType;
 use App\Models\SupplierInvoice;
 use App\Models\SupplierPayableAdjustment;
+use App\Services\Accounting\AccountingPeriodService;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class SupplierPayableAdjustmentService
 {
+    public function __construct(
+        private readonly AccountingPeriodService $accountingPeriods,
+    ) {}
+
     public function record(
         SupplierInvoice $invoice,
         SupplierPayableAdjustmentType $type,
@@ -63,6 +70,9 @@ class SupplierPayableAdjustmentService
                 ]);
             }
 
+            $adjustmentDate = $adjustmentDate ?? now();
+            $this->accountingPeriods->assertOpenIfDefined($adjustmentDate);
+
             $balance = $this->balance($lockedInvoice);
 
             if ($type === SupplierPayableAdjustmentType::CREDIT && $amount > $balance) {
@@ -75,7 +85,7 @@ class SupplierPayableAdjustmentService
                 'supplier_invoice_id' => $lockedInvoice->getKey(),
                 'number' => $number,
                 'type' => $type,
-                'adjustment_date' => $adjustmentDate ?? now(),
+                'adjustment_date' => $adjustmentDate,
                 'amount' => $amount,
                 'reason' => $reason,
                 'notes' => $notes,
@@ -142,6 +152,9 @@ class SupplierPayableAdjustmentService
                 ]);
             }
 
+            $reversalDate = $reversalDate ?? now();
+            $this->accountingPeriods->assertOpenIfDefined($reversalDate);
+
             $reversalType = $lockedAdjustment->type === SupplierPayableAdjustmentType::CREDIT
                 ? SupplierPayableAdjustmentType::DEBIT
                 : SupplierPayableAdjustmentType::CREDIT;
@@ -156,7 +169,7 @@ class SupplierPayableAdjustmentService
                 'supplier_invoice_id' => $invoice->getKey(),
                 'number' => $reversalNumber,
                 'type' => $reversalType,
-                'adjustment_date' => $reversalDate ?? now(),
+                'adjustment_date' => $reversalDate,
                 'amount' => $lockedAdjustment->amount,
                 'reason' => 'Reversal of '.$lockedAdjustment->number.': '.$reason,
                 'notes' => $notes,
@@ -165,7 +178,7 @@ class SupplierPayableAdjustmentService
             ]);
 
             $lockedAdjustment->update([
-                'reversed_at' => $reversalDate ?? now(),
+                'reversed_at' => $reversalDate,
                 'reversed_by' => $reversedBy,
                 'reversal_reason' => $reason,
             ]);
