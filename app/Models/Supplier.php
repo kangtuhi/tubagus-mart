@@ -2,32 +2,38 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Attributes\Casts;
-use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable([
-    'code',
-    'name',
-    'contact_person',
-    'email',
-    'phone',
-    'address',
-    'payment_terms',
-    'credit_limit',
-    'tax_number',
-    'is_active',
-    'notes',
-])]
-#[Casts([
-    'credit_limit' => 'decimal:2',
-    'is_active' => 'boolean',
-])]
 class Supplier extends Model
 {
     use HasFactory;
+
+    protected function casts(): array
+    {
+        return [
+            'credit_limit' => 'decimal:2',
+            'is_active' => 'boolean',
+        ];
+    }
+
+    protected function fillable(): array
+    {
+        return [
+            'code',
+            'name',
+            'contact_person',
+            'email',
+            'phone',
+            'address',
+            'payment_terms',
+            'credit_limit',
+            'tax_number',
+            'is_active',
+            'notes',
+        ];
+    }
 
     public function purchaseOrders(): HasMany
     {
