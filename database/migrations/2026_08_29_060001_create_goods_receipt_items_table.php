@@ -16,7 +16,10 @@ return new class extends Migration
             $table->decimal('unit_cost', 15, 2);
             $table->timestamps();
 
-            $table->unique(['goods_receipt_id', 'purchase_order_item_id']);
+            $table->unique(
+                ['goods_receipt_id', 'purchase_order_item_id'],
+                'goods_receipt_item_receipt_po_item_unique',
+            );
         });
     }
 
