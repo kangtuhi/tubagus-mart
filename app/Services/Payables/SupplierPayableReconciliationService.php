@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Services\Payables;
 
 use App\Enums\SupplierInvoiceStatus;
@@ -54,6 +56,7 @@ class SupplierPayableReconciliationService
                     'paid_total' => round($paidTotal, 2),
                     'outstanding' => $outstanding,
                     'is_reconciled' => $outstanding === 0.0,
+                    ...$this->statementIntegrity($first->supplier_id),
                 ];
             })
             ->values();
@@ -62,5 +65,40 @@ class SupplierPayableReconciliationService
     public function supplier(int $supplierId): ?array
     {
         return $this->reconcile($supplierId)->first();
+    }
+
+    private function statementIntegrity(int $supplierId): array
+    {
+        $statement = app(SupplierStatementService::class)->statement($supplierId);
+        $statementBalance = round($statement['closing_balance'], 2);
+
+        $operational = SupplierInvoice::query()
+            ->where('supplier_id', $supplierId)
+            ->whereIn('status', [
+                SupplierInvoiceStatus::POSTED,
+                SupplierInvoiceStatus::PARTIALLY_PAID,
+                SupplierInvoiceStatus::PAID,
+            ])
+            ->get()
+            ->sum(function (SupplierInvoice $invoice): float {
+                $credit = (float) $invoice->adjustments()
+                    ->where('type', SupplierPayableAdjustmentType::CREDIT)
+                    ->sum('amount');
+                $debit = (float) $invoice->adjustments()
+                    ->where('type', SupplierPayableAdjustmentType::DEBIT)
+                    ->sum('amount');
+
+                return (float) $invoice->grand_total + $debit - $credit - (float) $invoice->paid_amount;
+            });
+        $operationalBalance = round(max(0, $operational), 2);
+        $difference = round($statementBalance - $operationalBalance, 2);
+
+        return [
+            'statement_balance' => $statementBalance,
+            'operational_balance' => $operationalBalance,
+            'reconciliation_difference' => $difference,
+            'is_statement_reconciled' => $difference === 0.0,
+            'reconciliation_status' => $difference === 0.0 ? 'matched' : 'discrepancy',
+        ];
     }
 }
