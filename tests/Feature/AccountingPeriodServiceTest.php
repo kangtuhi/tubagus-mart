@@ -56,6 +56,7 @@ test('period close is rejected while AP reconciliation has a discrepancy', funct
         'supplier_id' => Supplier::factory()->create()->id,
         'invoice_date' => '2026-08-15',
         'status' => SupplierInvoiceStatus::DRAFT,
+        'subtotal' => 1000,
         'grand_total' => 1000,
         'paid_amount' => 0,
     ]);
