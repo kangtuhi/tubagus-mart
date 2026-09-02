@@ -89,6 +89,8 @@ class AccountingPeriodService
                 ]);
             }
 
+            $this->assertReopenPolicy($period);
+
             $reopenedAt = now();
 
             $period->update([
@@ -186,6 +188,20 @@ class AccountingPeriodService
         if (! $gate['can_close']) {
             throw ValidationException::withMessages([
                 'period' => 'Accounting period cannot be closed while AP reconciliation has discrepancies.',
+            ]);
+        }
+    }
+
+    private function assertReopenPolicy(AccountingPeriod $period): void
+    {
+        $hasLaterClosedPeriod = AccountingPeriod::query()
+            ->whereDate('start_date', '>', $period->end_date)
+            ->where('status', AccountingPeriodStatus::CLOSED)
+            ->exists();
+
+        if ($hasLaterClosedPeriod) {
+            throw ValidationException::withMessages([
+                'period' => 'Accounting period cannot be reopened while a subsequent accounting period is closed.',
             ]);
         }
     }
