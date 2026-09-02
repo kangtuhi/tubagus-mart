@@ -45,9 +45,9 @@ return new class extends Migration
                 ->on('users')
                 ->nullOnDelete();
 
-            $table->index(['accounting_period_id', 'status']);
-            $table->index(['supplier_id', 'status']);
-            $table->index(['type', 'status']);
+            $table->index(['accounting_period_id', 'status'], 'sprd_period_status_idx');
+            $table->index(['supplier_id', 'status'], 'sprd_supplier_status_idx');
+            $table->index(['type', 'status'], 'sprd_type_status_idx');
         });
     }
 
