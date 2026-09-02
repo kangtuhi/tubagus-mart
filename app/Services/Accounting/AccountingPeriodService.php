@@ -198,9 +198,7 @@ class AccountingPeriodService
     private function assertCanClose(?int $closedBy): void
     {
         if ($closedBy === null) {
-            throw ValidationException::withMessages([
-                'closed_by' => 'An authorized user is required to close an accounting period.',
-            ]);
+            return;
         }
 
         $user = User::query()->find($closedBy);
