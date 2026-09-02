@@ -20,17 +20,24 @@ uses(RefreshDatabase::class);
 
 function authorizedAccountingUser(): User
 {
-    $permission = Permission::create([
-        'name' => 'accounting.period.reopen',
-        'display_name' => 'Reopen Accounting Periods',
-        'group' => 'accounting',
+    $permissions = collect([
+        Permission::create([
+            'name' => 'accounting.period.close',
+            'display_name' => 'Close Accounting Periods',
+            'group' => 'accounting',
+        ]),
+        Permission::create([
+            'name' => 'accounting.period.reopen',
+            'display_name' => 'Reopen Accounting Periods',
+            'group' => 'accounting',
+        ]),
     ]);
 
     $role = Role::create([
         'name' => 'accounting-controller',
         'display_name' => 'Accounting Controller',
     ]);
-    $role->permissions()->attach($permission);
+    $role->permissions()->attach($permissions->pluck('id'));
 
     $user = User::factory()->create();
     $user->roles()->attach($role);
@@ -60,7 +67,7 @@ test('overlapping accounting periods are rejected', function () {
 
 test('closed accounting period records audit metadata and blocks posting dates', function () {
     $service = app(AccountingPeriodService::class);
-    $user = User::factory()->create();
+    $user = authorizedAccountingUser();
     $period = $service->open(Carbon::parse('2026-08-01'), Carbon::parse('2026-08-31'));
 
     $closed = $service->close($period, $user->id, 'Month-end close');
