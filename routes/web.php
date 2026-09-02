@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\AccountingPeriodController;
+use App\Http\Controllers\Admin\ApReconciliationController;
 use App\Http\Controllers\Auth\LoginController;
 use Illuminate\Support\Facades\Route;
 
@@ -36,6 +37,10 @@ Route::middleware(['auth', 'active', 'permission:dashboard.view'])
                 Route::get('/', [AccountingPeriodController::class, 'index'])->name('index');
                 Route::get('/{period}/gate', [AccountingPeriodController::class, 'gate'])->name('gate');
             });
+
+        Route::get('/accounting/ap-reconciliation', [ApReconciliationController::class, 'index'])
+            ->middleware('permission:accounting.period.view')
+            ->name('accounting.ap-reconciliation.index');
 
         Route::post('/accounting/periods/{period}/close', [AccountingPeriodController::class, 'close'])
             ->middleware('permission:accounting.period.close')
