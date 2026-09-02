@@ -3,7 +3,6 @@
 declare(strict_types=1);
 
 use App\Enums\AccountingPeriodStatus;
-use App\Models\AccountingPeriod;
 use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
