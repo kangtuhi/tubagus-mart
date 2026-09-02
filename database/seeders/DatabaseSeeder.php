@@ -22,10 +22,16 @@ class DatabaseSeeder extends Seeder
             ProductFoundationSeeder::class,
         ]);
 
-        $testUser = User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-        ]);
+        $testUser = User::query()->updateOrCreate(
+            ['email' => 'test@example.com'],
+            [
+                'name' => 'Test User',
+                'email_verified_at' => now(),
+                'password' => 'password',
+                'remember_token' => null,
+                'is_active' => true,
+            ],
+        );
 
         $testUser->roles()->syncWithoutDetaching([
             Role::where('name', 'super-admin')->value('id'),
