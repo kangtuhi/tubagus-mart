@@ -6,6 +6,7 @@ namespace App\Services\Accounting;
 
 use App\Enums\AccountingPeriodStatus;
 use App\Models\AccountingPeriod;
+use App\Services\Payables\SupplierPayableReconciliationService;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -43,6 +44,8 @@ class AccountingPeriodService
                     'period' => 'Accounting period is already closed.',
                 ]);
             }
+
+            $this->assertPayablesReconciled();
 
             $period->update([
                 'status' => AccountingPeriodStatus::CLOSED,
@@ -119,6 +122,19 @@ class AccountingPeriodService
         }
 
         return $period;
+    }
+
+    private function assertPayablesReconciled(): void
+    {
+        $discrepancies = app(SupplierPayableReconciliationService::class)
+            ->reconcile()
+            ->filter(fn (array $result): bool => $result['reconciliation_status'] !== 'matched');
+
+        if ($discrepancies->isNotEmpty()) {
+            throw ValidationException::withMessages([
+                'period' => 'Accounting period cannot be closed while AP reconciliation has discrepancies.',
+            ]);
+        }
     }
 
     private function overlaps(CarbonInterface $startDate, CarbonInterface $endDate): bool
