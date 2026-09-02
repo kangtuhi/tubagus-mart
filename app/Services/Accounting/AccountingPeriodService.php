@@ -45,7 +45,7 @@ class AccountingPeriodService
                 ]);
             }
 
-            $this->assertPayablesReconciled();
+            $this->assertClosingGate($period);
 
             $period->update([
                 'status' => AccountingPeriodStatus::CLOSED,
@@ -124,13 +124,36 @@ class AccountingPeriodService
         return $period;
     }
 
-    private function assertPayablesReconciled(): void
+    public function closingGate(AccountingPeriod $period): array
     {
-        $discrepancies = app(SupplierPayableReconciliationService::class)
-            ->reconcile()
-            ->filter(fn (array $result): bool => $result['reconciliation_status'] !== 'matched');
+        $reconciliation = app(SupplierPayableReconciliationService::class)
+            ->reconcile(to: $period->end_date);
+        $discrepancies = $reconciliation
+            ->filter(fn (array $result): bool => $result['reconciliation_status'] !== 'matched')
+            ->values();
 
-        if ($discrepancies->isNotEmpty()) {
+        return [
+            'period_id' => $period->id,
+            'period_start_date' => $period->start_date->toDateString(),
+            'period_end_date' => $period->end_date->toDateString(),
+            'period_status' => $period->status->value,
+            'can_close' => $discrepancies->isEmpty(),
+            'checks' => [
+                'ap_reconciliation' => [
+                    'status' => $discrepancies->isEmpty() ? 'passed' : 'failed',
+                    'supplier_count' => $reconciliation->count(),
+                    'discrepancy_count' => $discrepancies->count(),
+                ],
+            ],
+            'discrepancies' => $discrepancies->all(),
+        ];
+    }
+
+    private function assertClosingGate(AccountingPeriod $period): void
+    {
+        $gate = $this->closingGate($period);
+
+        if (! $gate['can_close']) {
             throw ValidationException::withMessages([
                 'period' => 'Accounting period cannot be closed while AP reconciliation has discrepancies.',
             ]);
