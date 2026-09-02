@@ -96,7 +96,11 @@ class SupplierPayableDiscrepancyService
         }
 
         $period = $discrepancy->accountingPeriod()->firstOrFail();
-        $row = $this->reconciliation->supplier($discrepancy->supplier_id);
+        $row = $this->reconciliation->reconcile(
+            supplierId: $discrepancy->supplier_id,
+            from: $period->start_date,
+            to: $period->end_date,
+        )->first();
 
         if ($row === null || $this->hasUnresolvedDifference($row, $discrepancy->type)) {
             throw ValidationException::withMessages([
