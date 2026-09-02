@@ -104,7 +104,9 @@ class SupplierPayableReconciliationService
 
                 $credit = (float) $creditQuery->sum('amount');
                 $debit = (float) $debitQuery->sum('amount');
-                $paid = (float) $paymentQuery->sum('amount');
+                $paid = $to !== null
+                    ? (float) $paymentQuery->sum('amount')
+                    : (float) $invoice->paid_amount;
 
                 return (float) $invoice->grand_total + $debit - $credit - $paid;
             });
