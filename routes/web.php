@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\AccountingPeriodController;
 use App\Http\Controllers\Auth\LoginController;
 use Illuminate\Support\Facades\Route;
 
@@ -27,4 +28,20 @@ Route::middleware(['auth', 'active', 'permission:dashboard.view'])
                 'section' => 'Command Center',
             ]);
         })->name('dashboard');
+
+        Route::middleware('permission:accounting.period.view')
+            ->prefix('accounting/periods')
+            ->name('accounting.periods.')
+            ->group(function (): void {
+                Route::get('/', [AccountingPeriodController::class, 'index'])->name('index');
+                Route::get('/{period}/gate', [AccountingPeriodController::class, 'gate'])->name('gate');
+            });
+
+        Route::post('/accounting/periods/{period}/close', [AccountingPeriodController::class, 'close'])
+            ->middleware('permission:accounting.period.close')
+            ->name('accounting.periods.close');
+
+        Route::post('/accounting/periods/{period}/reopen', [AccountingPeriodController::class, 'reopen'])
+            ->middleware('permission:accounting.period.reopen')
+            ->name('accounting.periods.reopen');
     });
