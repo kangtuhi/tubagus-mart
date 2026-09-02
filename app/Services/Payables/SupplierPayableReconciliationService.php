@@ -7,6 +7,7 @@ namespace App\Services\Payables;
 use App\Enums\SupplierInvoiceStatus;
 use App\Enums\SupplierPayableAdjustmentType;
 use App\Models\SupplierInvoice;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
 
 class SupplierPayableReconciliationService
@@ -14,8 +15,11 @@ class SupplierPayableReconciliationService
     /**
      * Reconcile posted supplier invoices against payments and adjustments.
      */
-    public function reconcile(?int $supplierId = null): Collection
-    {
+    public function reconcile(
+        ?int $supplierId = null,
+        ?CarbonInterface $from = null,
+        ?CarbonInterface $to = null,
+    ): Collection {
         $invoices = SupplierInvoice::query()
             ->with('supplier')
             ->whereIn('status', [
@@ -24,6 +28,7 @@ class SupplierPayableReconciliationService
                 SupplierInvoiceStatus::PAID,
             ])
             ->when($supplierId !== null, fn ($query) => $query->where('supplier_id', $supplierId))
+            ->when($to !== null, fn ($query) => $query->whereDate('invoice_date', '<=', $to))
             ->orderBy('supplier_id')
             ->orderBy('invoice_date')
             ->orderBy('number')
@@ -31,7 +36,7 @@ class SupplierPayableReconciliationService
 
         return $invoices
             ->groupBy('supplier_id')
-            ->map(function (Collection $supplierInvoices): array {
+            ->map(function (Collection $supplierInvoices) use ($from, $to): array {
                 $first = $supplierInvoices->first();
                 $invoiceTotal = $supplierInvoices->sum(fn (SupplierInvoice $invoice): float => (float) $invoice->grand_total);
                 $paidTotal = $supplierInvoices->sum(fn (SupplierInvoice $invoice): float => (float) $invoice->paid_amount);
@@ -56,7 +61,7 @@ class SupplierPayableReconciliationService
                     'paid_total' => round($paidTotal, 2),
                     'outstanding' => $outstanding,
                     'is_reconciled' => $outstanding === 0.0,
-                    ...$this->statementIntegrity($first->supplier_id),
+                    ...$this->statementIntegrity($first->supplier_id, $from, $to),
                 ];
             })
             ->values();
@@ -67,9 +72,12 @@ class SupplierPayableReconciliationService
         return $this->reconcile($supplierId)->first();
     }
 
-    private function statementIntegrity(int $supplierId): array
-    {
-        $statement = app(SupplierStatementService::class)->statement($supplierId);
+    private function statementIntegrity(
+        int $supplierId,
+        ?CarbonInterface $from = null,
+        ?CarbonInterface $to = null,
+    ): array {
+        $statement = app(SupplierStatementService::class)->statement($supplierId, $from, $to);
         $statementBalance = round($statement['closing_balance'], 2);
 
         $operational = SupplierInvoice::query()
@@ -79,16 +87,26 @@ class SupplierPayableReconciliationService
                 SupplierInvoiceStatus::PARTIALLY_PAID,
                 SupplierInvoiceStatus::PAID,
             ])
+            ->when($to !== null, fn ($query) => $query->whereDate('invoice_date', '<=', $to))
             ->get()
-            ->sum(function (SupplierInvoice $invoice): float {
-                $credit = (float) $invoice->adjustments()
-                    ->where('type', SupplierPayableAdjustmentType::CREDIT)
-                    ->sum('amount');
-                $debit = (float) $invoice->adjustments()
-                    ->where('type', SupplierPayableAdjustmentType::DEBIT)
-                    ->sum('amount');
+            ->sum(function (SupplierInvoice $invoice) use ($to): float {
+                $creditQuery = $invoice->adjustments()
+                    ->where('type', SupplierPayableAdjustmentType::CREDIT);
+                $debitQuery = $invoice->adjustments()
+                    ->where('type', SupplierPayableAdjustmentType::DEBIT);
+                $paymentQuery = $invoice->payments();
 
-                return (float) $invoice->grand_total + $debit - $credit - (float) $invoice->paid_amount;
+                if ($to !== null) {
+                    $creditQuery->whereDate('adjustment_date', '<=', $to);
+                    $debitQuery->whereDate('adjustment_date', '<=', $to);
+                    $paymentQuery->whereDate('paid_at', '<=', $to);
+                }
+
+                $credit = (float) $creditQuery->sum('amount');
+                $debit = (float) $debitQuery->sum('amount');
+                $paid = (float) $paymentQuery->sum('amount');
+
+                return (float) $invoice->grand_total + $debit - $credit - $paid;
             });
         $operationalBalance = round(max(0, $operational), 2);
         $difference = round($statementBalance - $operationalBalance, 2);
