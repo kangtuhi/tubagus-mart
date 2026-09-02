@@ -26,6 +26,8 @@ class AccountingPeriodController extends Controller
             : null;
 
         return view('admin.accounting.periods.index', [
+            'currentUser' => request()->user(),
+            'section' => 'Accounting Control',
             'periods' => $periods,
             'currentPeriod' => $currentPeriod,
             'closingGate' => $closingGate,
@@ -35,6 +37,8 @@ class AccountingPeriodController extends Controller
     public function gate(AccountingPeriod $period, AccountingPeriodService $service): View
     {
         return view('admin.accounting.periods.gate', [
+            'currentUser' => request()->user(),
+            'section' => 'Accounting Control',
             'period' => $period,
             'gate' => $service->closingGate($period),
         ]);
