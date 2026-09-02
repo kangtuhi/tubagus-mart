@@ -65,16 +65,26 @@ class ApReconciliationHttpTest extends TestCase
 
     private function authorizedUser(): User
     {
-        $permission = Permission::create([
-            'name' => 'accounting.period.view',
-            'display_name' => 'View Accounting Periods',
-            'group' => 'accounting',
-        ]);
+        $permissions = Permission::query()->whereIn('name', [
+            'dashboard.view',
+            'accounting.period.view',
+        ])->get();
+
+        foreach (['dashboard.view', 'accounting.period.view'] as $name) {
+            if (! $permissions->contains('name', $name)) {
+                $permissions->push(Permission::create([
+                    'name' => $name,
+                    'display_name' => $name,
+                    'group' => $name === 'dashboard.view' ? 'dashboard' : 'accounting',
+                ]));
+            }
+        }
+
         $role = Role::create([
             'name' => 'ap-reconciliation-http',
             'display_name' => 'AP Reconciliation HTTP',
         ]);
-        $role->permissions()->attach($permission);
+        $role->permissions()->attach($permissions->pluck('id'));
         $user = User::factory()->create(['is_active' => true]);
         $user->roles()->attach($role);
 
