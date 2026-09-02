@@ -32,7 +32,9 @@
                 <a href="#" class="nav-item"><span class="nav-icon">◈</span><span>Payables</span></a>
 
                 <p class="nav-caption mt-7">Finance</p>
-                <a href="#" class="nav-item"><span class="nav-icon">◫</span><span>Accounting Periods</span><span class="ml-auto rounded-full bg-emerald-400/10 px-2 py-0.5 text-[9px] font-bold text-emerald-300">LIVE</span></a>
+                <a href="{{ route('admin.accounting.periods.index') }}" class="nav-item {{ request()->routeIs('admin.accounting.periods.*') ? 'nav-item-active' : '' }}">
+                    <span class="nav-icon">◫</span><span>Accounting Periods</span><span class="ml-auto rounded-full bg-emerald-400/10 px-2 py-0.5 text-[9px] font-bold text-emerald-300">LIVE</span>
+                </a>
                 <a href="#" class="nav-item"><span class="nav-icon">⌁</span><span>AP Reconciliation</span></a>
                 <a href="#" class="nav-item"><span class="nav-icon">◌</span><span>AP Aging</span></a>
                 <a href="#" class="nav-item"><span class="nav-icon">◍</span><span>Audit Trail</span></a>
