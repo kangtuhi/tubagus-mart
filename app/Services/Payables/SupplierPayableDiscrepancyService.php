@@ -14,7 +14,8 @@ class SupplierPayableDiscrepancyService
 {
     public function __construct(
         private readonly SupplierPayableReconciliationService $reconciliation,
-    ) {}
+    ) {
+    }
 
     public function sync(AccountingPeriod $period, ?User $actor = null): Collection
     {
@@ -155,7 +156,7 @@ class SupplierPayableDiscrepancyService
 
     private function authorize(User $actor, string $permission): void
     {
-        if (!$actor->is_active || !$actor->hasPermission($permission)) {
+        if (! $actor->is_active || ! $actor->hasPermission($permission)) {
             throw ValidationException::withMessages([
                 'user' => 'The user is not authorized for AP discrepancy control.',
             ]);
