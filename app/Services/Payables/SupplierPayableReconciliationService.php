@@ -89,36 +89,41 @@ class SupplierPayableReconciliationService
             ])
             ->when($to !== null, fn ($query) => $query->whereDate('invoice_date', '<=', $to))
             ->get()
-            ->sum(function (SupplierInvoice $invoice) use ($to): float {
-                $creditQuery = $invoice->adjustments()
-                    ->where('type', SupplierPayableAdjustmentType::CREDIT);
-                $debitQuery = $invoice->adjustments()
-                    ->where('type', SupplierPayableAdjustmentType::DEBIT);
-                $paymentQuery = $invoice->payments();
+            ->sum(function (SupplierInvoice $invoice): float {
+                $credit = (float) $invoice->adjustments()
+                    ->where('type', SupplierPayableAdjustmentType::CREDIT)
+                    ->sum('amount');
+                $debit = (float) $invoice->adjustments()
+                    ->where('type', SupplierPayableAdjustmentType::DEBIT)
+                    ->sum('amount');
 
-                if ($to !== null) {
-                    $creditQuery->whereDate('adjustment_date', '<=', $to);
-                    $debitQuery->whereDate('adjustment_date', '<=', $to);
-                    $paymentQuery->whereDate('paid_at', '<=', $to);
-                }
-
-                $credit = (float) $creditQuery->sum('amount');
-                $debit = (float) $debitQuery->sum('amount');
-                $paid = $to !== null
-                    ? (float) $paymentQuery->sum('amount')
-                    : (float) $invoice->paid_amount;
-
-                return (float) $invoice->grand_total + $debit - $credit - $paid;
+                return (float) $invoice->grand_total + $debit - $credit - (float) $invoice->paid_amount;
             });
         $operationalBalance = round(max(0, $operational), 2);
         $difference = round($statementBalance - $operationalBalance, 2);
+
+        $paymentLedgerDifference = SupplierInvoice::query()
+            ->where('supplier_id', $supplierId)
+            ->whereIn('status', [
+                SupplierInvoiceStatus::POSTED,
+                SupplierInvoiceStatus::PARTIALLY_PAID,
+                SupplierInvoiceStatus::PAID,
+            ])
+            ->when($to !== null, fn ($query) => $query->whereDate('invoice_date', '<=', $to))
+            ->get()
+            ->sum(function (SupplierInvoice $invoice): float {
+                return round((float) $invoice->paid_amount - (float) $invoice->payments()->sum('amount'), 2);
+            });
+        $paymentLedgerDifference = round($paymentLedgerDifference, 2);
+        $isReconciled = $difference === 0.0 && $paymentLedgerDifference === 0.0;
 
         return [
             'statement_balance' => $statementBalance,
             'operational_balance' => $operationalBalance,
             'reconciliation_difference' => $difference,
-            'is_statement_reconciled' => $difference === 0.0,
-            'reconciliation_status' => $difference === 0.0 ? 'matched' : 'discrepancy',
+            'payment_ledger_difference' => $paymentLedgerDifference,
+            'is_statement_reconciled' => $isReconciled,
+            'reconciliation_status' => $isReconciled ? 'matched' : 'discrepancy',
         ];
     }
 }
