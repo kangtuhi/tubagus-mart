@@ -7,3 +7,70 @@
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
 }
+
+@layer components {
+    .admin-sidebar {
+        box-shadow: 24px 0 80px rgba(2, 8, 23, .28);
+    }
+
+    .nav-caption {
+        @apply px-3 pb-2 text-[9px] font-bold uppercase tracking-[.24em] text-slate-600;
+    }
+
+    .nav-item {
+        @apply mb-1 flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-semibold text-slate-500 transition duration-200 hover:bg-white/[.045] hover:text-slate-200;
+    }
+
+    .nav-item-active {
+        @apply bg-white/[.075] text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,.06)];
+    }
+
+    .nav-icon {
+        @apply flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white/[.035] text-xs text-slate-500 transition group-hover:text-white;
+    }
+
+    .hero-panel {
+        background: radial-gradient(circle at 78% 18%, rgba(34, 211, 238, .10), transparent 30%), linear-gradient(135deg, rgba(15, 23, 42, .98), rgba(15, 23, 42, .72));
+        box-shadow: 0 30px 80px rgba(2, 8, 23, .30);
+    }
+
+    .text-gradient {
+        background: linear-gradient(90deg, #67e8f9, #a5f3fc 45%, #fff);
+        background-clip: text;
+        color: transparent;
+    }
+
+    .stat-card {
+        @apply rounded-3xl border border-white/[.08] bg-white/[.035] p-5 transition duration-300 hover:-translate-y-1 hover:border-white/[.14] hover:bg-white/[.05];
+        box-shadow: 0 20px 50px rgba(2, 8, 23, .16);
+    }
+
+    .panel-card {
+        @apply rounded-3xl border border-white/[.08] bg-white/[.025];
+        box-shadow: 0 20px 60px rgba(2, 8, 23, .18);
+    }
+
+    .eyebrow {
+        @apply text-[10px] font-bold uppercase tracking-[.2em] text-cyan-300;
+    }
+
+    .status-open {
+        @apply rounded-full border border-emerald-300/20 bg-emerald-300/10 px-2.5 py-1 text-[9px] font-black tracking-[.15em] text-emerald-300;
+    }
+
+    .action-row {
+        @apply flex items-center gap-3 rounded-2xl border border-white/[.06] bg-white/[.025] p-3 transition hover:bg-white/[.05];
+    }
+
+    .action-dot {
+        @apply h-2 w-2 shrink-0 rounded-full shadow-[0_0_14px_currentColor];
+    }
+
+    .meter {
+        @apply h-1.5 overflow-hidden rounded-full bg-white/[.06];
+    }
+
+    .meter span {
+        @apply block h-full rounded-full bg-cyan-300/80;
+    }
+}
