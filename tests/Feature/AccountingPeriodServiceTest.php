@@ -3,8 +3,12 @@
 declare(strict_types=1);
 
 use App\Enums\AccountingPeriodStatus;
+use App\Enums\SupplierInvoiceStatus;
+use App\Models\Supplier;
 use App\Models\User;
 use App\Services\Accounting\AccountingPeriodService;
+use App\Services\Payables\SupplierInvoiceService;
+use App\Models\SupplierInvoice;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Validation\ValidationException;
@@ -43,6 +47,34 @@ test('closed accounting period records audit metadata and blocks posting dates',
         ->and($closed->closing_reason)->toBe('Month-end close')
         ->and(fn () => $service->assertOpen(Carbon::parse('2026-08-31')))
         ->toThrow(ValidationException::class);
+});
+
+test('period close is rejected while AP reconciliation has a discrepancy', function () {
+    $service = app(AccountingPeriodService::class);
+    $period = $service->open(Carbon::parse('2026-08-01'), Carbon::parse('2026-08-31'));
+    $invoice = SupplierInvoice::factory()->create([
+        'supplier_id' => Supplier::factory(),
+        'invoice_date' => '2026-08-15',
+        'status' => SupplierInvoiceStatus::DRAFT,
+        'grand_total' => 1000,
+        'paid_amount' => 0,
+    ]);
+
+    app(SupplierInvoiceService::class)->post($invoice);
+    $invoice->update(['paid_amount' => 100]);
+
+    expect(fn () => $service->close($period, reason: 'Month-end close'))
+        ->toThrow(ValidationException::class, 'Accounting period cannot be closed while AP reconciliation has discrepancies.')
+        ->and($period->refresh()->status)->toBe(AccountingPeriodStatus::OPEN);
+});
+
+test('period close succeeds when AP reconciliation is balanced', function () {
+    $service = app(AccountingPeriodService::class);
+    $period = $service->open(Carbon::parse('2026-08-01'), Carbon::parse('2026-08-31'));
+
+    $closed = $service->close($period, reason: 'Month-end close');
+
+    expect($closed->status)->toBe(AccountingPeriodStatus::CLOSED);
 });
 
 test('closed accounting period can be explicitly reopened', function () {
