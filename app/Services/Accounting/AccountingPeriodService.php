@@ -7,6 +7,7 @@ namespace App\Services\Accounting;
 use App\Enums\AccountingPeriodStatus;
 use App\Models\AccountingPeriod;
 use App\Models\AccountingPeriodEvent;
+use App\Models\User;
 use App\Services\Payables\SupplierPayableReconciliationService;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
@@ -89,6 +90,7 @@ class AccountingPeriodService
                 ]);
             }
 
+            $this->assertCanReopen($reopenedBy);
             $this->assertReopenPolicy($period);
 
             $reopenedAt = now();
@@ -188,6 +190,23 @@ class AccountingPeriodService
         if (! $gate['can_close']) {
             throw ValidationException::withMessages([
                 'period' => 'Accounting period cannot be closed while AP reconciliation has discrepancies.',
+            ]);
+        }
+    }
+
+    private function assertCanReopen(?int $reopenedBy): void
+    {
+        if ($reopenedBy === null) {
+            throw ValidationException::withMessages([
+                'reopened_by' => 'An authorized user is required to reopen an accounting period.',
+            ]);
+        }
+
+        $user = User::query()->find($reopenedBy);
+
+        if ($user === null || ! $user->is_active || ! $user->hasPermission('accounting.period.reopen')) {
+            throw ValidationException::withMessages([
+                'reopened_by' => 'The user is not authorized to reopen accounting periods.',
             ]);
         }
     }
