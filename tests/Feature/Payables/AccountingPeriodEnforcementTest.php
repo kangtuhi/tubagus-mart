@@ -135,7 +135,10 @@ test('reversal is allowed after its accounting period is reopened', function () 
     );
 
     app(AccountingPeriodService::class)->close($period);
-    app(AccountingPeriodService::class)->reopen($period);
+    app(AccountingPeriodService::class)->reopen(
+        $period,
+        reason: 'Period reopened for controlled correction',
+    );
 
     $reversal = app(SupplierPayableAdjustmentService::class)->reverse(
         $adjustment,
