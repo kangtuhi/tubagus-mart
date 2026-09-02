@@ -33,6 +33,8 @@ class RolePermissionSeeder extends Seeder
             ['name' => 'purchases.approve', 'display_name' => 'Approve Purchases', 'group' => 'purchases'],
             ['name' => 'reports.view', 'display_name' => 'View Reports', 'group' => 'reports'],
             ['name' => 'settings.manage', 'display_name' => 'Manage Settings', 'group' => 'settings'],
+            ['name' => 'accounting.period.view', 'display_name' => 'View Accounting Periods', 'group' => 'accounting'],
+            ['name' => 'accounting.period.close', 'display_name' => 'Close Accounting Periods', 'group' => 'accounting'],
             ['name' => 'accounting.period.reopen', 'display_name' => 'Reopen Accounting Periods', 'group' => 'accounting'],
         ];
 
@@ -69,6 +71,9 @@ class RolePermissionSeeder extends Seeder
             'sales.view',
             'purchases.view', 'purchases.create', 'purchases.approve',
             'reports.view',
+            'accounting.period.view',
+            'accounting.period.close',
+            'accounting.period.reopen',
         ])->pluck('id'));
 
         $cashier = Role::updateOrCreate(
