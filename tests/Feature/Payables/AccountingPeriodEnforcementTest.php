@@ -5,8 +5,11 @@ declare(strict_types=1);
 use App\Enums\SupplierInvoiceStatus;
 use App\Enums\SupplierPayableAdjustmentType;
 use App\Models\AccountingPeriod;
+use App\Models\Permission;
+use App\Models\Role;
 use App\Models\Supplier;
 use App\Models\SupplierInvoice;
+use App\Models\User;
 use App\Services\Accounting\AccountingPeriodService;
 use App\Services\Payables\SupplierInvoiceService;
 use App\Services\Payables\SupplierPayableAdjustmentService;
@@ -38,6 +41,25 @@ function openAugust2026Period(): AccountingPeriod
         Carbon::parse('2026-08-01'),
         Carbon::parse('2026-08-31'),
     );
+}
+
+function authorizedAccountingPeriodUser(): User
+{
+    $user = User::factory()->create();
+    $role = Role::create([
+        'name' => 'accounting-test',
+        'display_name' => 'Accounting Test',
+    ]);
+    $permission = Permission::create([
+        'name' => 'accounting.period.reopen',
+        'display_name' => 'Reopen Accounting Period',
+        'group' => 'accounting',
+    ]);
+
+    $role->permissions()->attach($permission);
+    $user->roles()->attach($role);
+
+    return $user;
 }
 
 test('invoice posting is allowed in an open accounting period', function () {
@@ -134,10 +156,13 @@ test('reversal is allowed after its accounting period is reopened', function () 
         Carbon::parse('2026-08-21'),
     );
 
+    $authorizedUser = authorizedAccountingPeriodUser();
+
     app(AccountingPeriodService::class)->close($period);
     app(AccountingPeriodService::class)->reopen(
         $period,
-        reason: 'Period reopened for controlled correction',
+        $authorizedUser->id,
+        'Period reopened for controlled correction',
     );
 
     $reversal = app(SupplierPayableAdjustmentService::class)->reverse(
