@@ -5,10 +5,10 @@ declare(strict_types=1);
 use App\Enums\AccountingPeriodStatus;
 use App\Enums\SupplierInvoiceStatus;
 use App\Models\Supplier;
+use App\Models\SupplierInvoice;
 use App\Models\User;
 use App\Services\Accounting\AccountingPeriodService;
 use App\Services\Payables\SupplierInvoiceService;
-use App\Models\SupplierInvoice;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Validation\ValidationException;
@@ -53,7 +53,7 @@ test('period close is rejected while AP reconciliation has a discrepancy', funct
     $service = app(AccountingPeriodService::class);
     $period = $service->open(Carbon::parse('2026-08-01'), Carbon::parse('2026-08-31'));
     $invoice = SupplierInvoice::factory()->create([
-        'supplier_id' => Supplier::factory(),
+        'supplier_id' => Supplier::factory()->create()->id,
         'invoice_date' => '2026-08-15',
         'status' => SupplierInvoiceStatus::DRAFT,
         'grand_total' => 1000,
