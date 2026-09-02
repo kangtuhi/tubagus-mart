@@ -33,6 +33,7 @@ class RolePermissionSeeder extends Seeder
             ['name' => 'purchases.approve', 'display_name' => 'Approve Purchases', 'group' => 'purchases'],
             ['name' => 'reports.view', 'display_name' => 'View Reports', 'group' => 'reports'],
             ['name' => 'settings.manage', 'display_name' => 'Manage Settings', 'group' => 'settings'],
+            ['name' => 'accounting.period.reopen', 'display_name' => 'Reopen Accounting Periods', 'group' => 'accounting'],
         ];
 
         foreach ($permissions as $permission) {
