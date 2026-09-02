@@ -47,6 +47,7 @@ class AccountingPeriodService
                 ]);
             }
 
+            $this->assertCanClose($closedBy);
             $this->assertClosingGate($period);
 
             $closedAt = now();
@@ -190,6 +191,23 @@ class AccountingPeriodService
         if (! $gate['can_close']) {
             throw ValidationException::withMessages([
                 'period' => 'Accounting period cannot be closed while AP reconciliation has discrepancies.',
+            ]);
+        }
+    }
+
+    private function assertCanClose(?int $closedBy): void
+    {
+        if ($closedBy === null) {
+            throw ValidationException::withMessages([
+                'closed_by' => 'An authorized user is required to close an accounting period.',
+            ]);
+        }
+
+        $user = User::query()->find($closedBy);
+
+        if ($user === null || ! $user->is_active || ! $user->hasPermission('accounting.period.close')) {
+            throw ValidationException::withMessages([
+                'closed_by' => 'The user is not authorized to close accounting periods.',
             ]);
         }
     }
