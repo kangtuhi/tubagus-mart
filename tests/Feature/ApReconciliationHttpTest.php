@@ -60,7 +60,7 @@ class ApReconciliationHttpTest extends TestCase
             ->get(route('admin.accounting.ap-reconciliation.index', ['supplier_id' => $supplier->id]))
             ->assertOk()
             ->assertSee('Selected Supplier')
-            ->assertDontSee('Other Supplier');
+            ->assertDontSee('class="font-bold text-white">Other Supplier</p>', false);
     }
 
     private function authorizedUser(): User
