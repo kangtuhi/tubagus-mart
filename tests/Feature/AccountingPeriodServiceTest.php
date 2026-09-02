@@ -118,6 +118,39 @@ test('reopening without a reason is rejected', function () {
         ->toThrow(ValidationException::class, 'A reason is required to reopen an accounting period.');
 });
 
+test('reopening is rejected when a subsequent accounting period is already closed', function () {
+    $service = app(AccountingPeriodService::class);
+    $august = $service->open(Carbon::parse('2026-08-01'), Carbon::parse('2026-08-31'));
+    $september = $service->open(Carbon::parse('2026-09-01'), Carbon::parse('2026-09-30'));
+
+    $service->close($august, reason: 'August month-end close');
+    $service->close($september, reason: 'September month-end close');
+
+    expect(fn () => $service->reopen($august, reason: 'Correct August AP posting'))
+        ->toThrow(ValidationException::class, 'Accounting period cannot be reopened while a subsequent accounting period is closed.')
+        ->and($august->refresh()->status)->toBe(AccountingPeriodStatus::CLOSED);
+});
+
+test('a closed period can be reopened and closed again when no subsequent period is closed', function () {
+    $service = app(AccountingPeriodService::class);
+    $period = $service->open(Carbon::parse('2026-08-01'), Carbon::parse('2026-08-31'));
+
+    $service->close($period, reason: 'Initial month-end close');
+    $service->reopen($period, reason: 'Correct AP posting');
+    $reclosed = $service->close($period, reason: 'Controlled re-close after correction');
+
+    expect($reclosed->status)->toBe(AccountingPeriodStatus::CLOSED);
+
+    $events = AccountingPeriodEvent::query()->orderBy('id')->get();
+
+    expect($events)->toHaveCount(3)
+        ->and($events[0]->action)->toBe('closed')
+        ->and($events[1]->action)->toBe('reopened')
+        ->and($events[2]->action)->toBe('closed')
+        ->and($events[1]->reason)->toBe('Correct AP posting')
+        ->and($events[2]->reason)->toBe('Controlled re-close after correction');
+});
+
 test('reopening an open period and closing an already closed period are rejected', function () {
     $service = app(AccountingPeriodService::class);
     $period = $service->open(Carbon::parse('2026-08-01'), Carbon::parse('2026-08-31'));
