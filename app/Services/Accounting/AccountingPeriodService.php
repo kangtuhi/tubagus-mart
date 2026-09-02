@@ -6,6 +6,7 @@ namespace App\Services\Accounting;
 
 use App\Enums\AccountingPeriodStatus;
 use App\Models\AccountingPeriod;
+use App\Models\AccountingPeriodEvent;
 use App\Services\Payables\SupplierPayableReconciliationService;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
@@ -47,20 +48,39 @@ class AccountingPeriodService
 
             $this->assertClosingGate($period);
 
+            $closedAt = now();
+
             $period->update([
                 'status' => AccountingPeriodStatus::CLOSED,
-                'closed_at' => now(),
+                'closed_at' => $closedAt,
                 'closed_by' => $closedBy,
                 'closing_reason' => $reason,
+            ]);
+
+            AccountingPeriodEvent::query()->create([
+                'accounting_period_id' => $period->id,
+                'action' => 'closed',
+                'performed_by' => $closedBy,
+                'performed_at' => $closedAt,
+                'reason' => $reason,
             ]);
 
             return $period->refresh();
         });
     }
 
-    public function reopen(AccountingPeriod $period): AccountingPeriod
-    {
-        return DB::transaction(function () use ($period): AccountingPeriod {
+    public function reopen(
+        AccountingPeriod $period,
+        ?int $reopenedBy = null,
+        ?string $reason = null,
+    ): AccountingPeriod {
+        if (blank($reason)) {
+            throw ValidationException::withMessages([
+                'reason' => 'A reason is required to reopen an accounting period.',
+            ]);
+        }
+
+        return DB::transaction(function () use ($period, $reopenedBy, $reason): AccountingPeriod {
             $period = AccountingPeriod::query()->lockForUpdate()->findOrFail($period->getKey());
 
             if ($period->isOpen()) {
@@ -69,11 +89,21 @@ class AccountingPeriodService
                 ]);
             }
 
+            $reopenedAt = now();
+
             $period->update([
                 'status' => AccountingPeriodStatus::OPEN,
                 'closed_at' => null,
                 'closed_by' => null,
                 'closing_reason' => null,
+            ]);
+
+            AccountingPeriodEvent::query()->create([
+                'accounting_period_id' => $period->id,
+                'action' => 'reopened',
+                'performed_by' => $reopenedBy,
+                'performed_at' => $reopenedAt,
+                'reason' => trim($reason),
             ]);
 
             return $period->refresh();
