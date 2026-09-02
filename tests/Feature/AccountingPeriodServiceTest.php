@@ -5,6 +5,8 @@ declare(strict_types=1);
 use App\Enums\AccountingPeriodStatus;
 use App\Enums\SupplierInvoiceStatus;
 use App\Models\AccountingPeriodEvent;
+use App\Models\Permission;
+use App\Models\Role;
 use App\Models\Supplier;
 use App\Models\SupplierInvoice;
 use App\Models\User;
@@ -15,6 +17,26 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Validation\ValidationException;
 
 uses(RefreshDatabase::class);
+
+function authorizedAccountingUser(): User
+{
+    $permission = Permission::create([
+        'name' => 'accounting.period.reopen',
+        'display_name' => 'Reopen Accounting Periods',
+        'group' => 'accounting',
+    ]);
+
+    $role = Role::create([
+        'name' => 'accounting-controller',
+        'display_name' => 'Accounting Controller',
+    ]);
+    $role->permissions()->attach($permission);
+
+    $user = User::factory()->create();
+    $user->roles()->attach($role);
+
+    return $user;
+}
 
 test('accounting period can be opened for a non-overlapping date range', function () {
     $period = app(AccountingPeriodService::class)->open(
@@ -87,9 +109,9 @@ test('period close succeeds when AP reconciliation is balanced', function () {
     expect($closed->status)->toBe(AccountingPeriodStatus::CLOSED);
 });
 
-test('closed accounting period can be explicitly reopened with a reason', function () {
+test('closed accounting period can be explicitly reopened by an authorized user', function () {
     $service = app(AccountingPeriodService::class);
-    $user = User::factory()->create();
+    $user = authorizedAccountingUser();
     $period = $service->open(Carbon::parse('2026-08-01'), Carbon::parse('2026-08-31'));
 
     $service->close($period, $user->id, 'Month-end close');
@@ -109,34 +131,48 @@ test('closed accounting period can be explicitly reopened with a reason', functi
         ->and($events[1]->reason)->toBe('Correct AP posting');
 });
 
+test('reopening is rejected when the actor is not authorized', function () {
+    $service = app(AccountingPeriodService::class);
+    $user = User::factory()->create();
+    $period = $service->open(Carbon::parse('2026-08-01'), Carbon::parse('2026-08-31'));
+    $service->close($period, reason: 'Month-end close');
+
+    expect(fn () => $service->reopen($period, $user->id, 'Correct AP posting'))
+        ->toThrow(ValidationException::class, 'The user is not authorized to reopen accounting periods.')
+        ->and($period->refresh()->status)->toBe(AccountingPeriodStatus::CLOSED);
+});
+
 test('reopening without a reason is rejected', function () {
     $service = app(AccountingPeriodService::class);
+    $user = authorizedAccountingUser();
     $period = $service->open(Carbon::parse('2026-08-01'), Carbon::parse('2026-08-31'));
     $service->close($period);
 
-    expect(fn () => $service->reopen($period))
+    expect(fn () => $service->reopen($period, $user->id))
         ->toThrow(ValidationException::class, 'A reason is required to reopen an accounting period.');
 });
 
 test('reopening is rejected when a subsequent accounting period is already closed', function () {
     $service = app(AccountingPeriodService::class);
+    $user = authorizedAccountingUser();
     $august = $service->open(Carbon::parse('2026-08-01'), Carbon::parse('2026-08-31'));
     $september = $service->open(Carbon::parse('2026-09-01'), Carbon::parse('2026-09-30'));
 
     $service->close($august, reason: 'August month-end close');
     $service->close($september, reason: 'September month-end close');
 
-    expect(fn () => $service->reopen($august, reason: 'Correct August AP posting'))
+    expect(fn () => $service->reopen($august, $user->id, 'Correct August AP posting'))
         ->toThrow(ValidationException::class, 'Accounting period cannot be reopened while a subsequent accounting period is closed.')
         ->and($august->refresh()->status)->toBe(AccountingPeriodStatus::CLOSED);
 });
 
 test('a closed period can be reopened and closed again when no subsequent period is closed', function () {
     $service = app(AccountingPeriodService::class);
+    $user = authorizedAccountingUser();
     $period = $service->open(Carbon::parse('2026-08-01'), Carbon::parse('2026-08-31'));
 
     $service->close($period, reason: 'Initial month-end close');
-    $service->reopen($period, reason: 'Correct AP posting');
+    $service->reopen($period, $user->id, 'Correct AP posting');
     $reclosed = $service->close($period, reason: 'Controlled re-close after correction');
 
     expect($reclosed->status)->toBe(AccountingPeriodStatus::CLOSED);
@@ -153,9 +189,10 @@ test('a closed period can be reopened and closed again when no subsequent period
 
 test('reopening an open period and closing an already closed period are rejected', function () {
     $service = app(AccountingPeriodService::class);
+    $user = authorizedAccountingUser();
     $period = $service->open(Carbon::parse('2026-08-01'), Carbon::parse('2026-08-31'));
 
-    expect(fn () => $service->reopen($period, reason: 'No longer needed'))->toThrow(ValidationException::class);
+    expect(fn () => $service->reopen($period, $user->id, 'No longer needed'))->toThrow(ValidationException::class);
 
     $service->close($period);
 
