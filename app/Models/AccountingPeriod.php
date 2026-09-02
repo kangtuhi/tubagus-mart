@@ -8,6 +8,7 @@ use App\Enums\AccountingPeriodStatus;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 #[Fillable([
     'start_date',
@@ -32,6 +33,11 @@ class AccountingPeriod extends Model
     public function closedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'closed_by');
+    }
+
+    public function events(): HasMany
+    {
+        return $this->hasMany(AccountingPeriodEvent::class);
     }
 
     public function isOpen(): bool
